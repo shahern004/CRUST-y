@@ -1,0 +1,514 @@
+# CRUSTy V1 System Pseudo-Design
+
+1. **C++ as the main application** (entry point, existing code)
+
+2. **Rust compiled as a static library** (memory-safe modules)  
+
+3. **C++ calling Rust functions** via FFI (not Rust calling C++)
+
+┌─────────────────────────────────────┐
+│   C++ Main Application (STM32U5A)   │
+│   - Entry point (main)              │
+│   - Existing business logic         │
+│   - Hardware init (STM32CubeMX)     │
+│   - Calls Rust for critical paths   │
+└──────────────┬──────────────────────┘
+               │
+               │ FFI calls via C ABI
+               │
+┌──────────────▼──────────────────────┐
+│   Rust Static Library (.a)          │
+│   - Memory-safe FPGA interface      │
+│   - Encryption functions            │
+│   - Buffer management               │
+│   - Compiled with #![no_std]        │
+└─────────────────────────────────────┘
+
+---
+
+## Rust Static Library + cbindgen
+
+### Tools Required
+
+1. **cbindgen**: Generates C/C++ headers from Rust code
+
+2. **Cargo**: Builds Rust as `staticlib` for ARM target
+
+3. **arm-none-eabi-gcc**: Links everything together
+
+---
+
+## Concrete Implementation Example
+
+### Step 1: Rust Library Structure
+
+**Cargo.toml:**
+
+```toml
+
+[package]
+
+name = "CRUSTy"
+
+version = "0.2.0"
+
+edition = "2025"
+
+
+
+[lib]
+
+crate-type = ["staticlib"]  # Critical: static library for linking
+
+name = "CRUSTy v2.0"
+
+
+
+[dependencies]
+
+# No heap allocator needed for your use case
+
+# panic-abort instead of unwinding
+
+
+
+[profile.release]
+
+opt-level = "z"        # Optimize for size
+
+lto = true             # Link-time optimization
+
+codegen-units = 1      # Better optimization
+
+panic = "abort"        # No unwinding on baremetal
+
+strip = true           # Remove symbols
+
+
+
+[build-dependencies]
+
+cbindgen = "0.26"      # Generate C++ headers
+
+```
+
+
+
+**.cargo/config.toml:**
+
+```toml
+
+[build]
+
+target = "thumbv8m.main-none-eabihf"  # STM32U5A (Cortex-M33)
+
+
+
+[target.thumbv8m.main-none-eabihf]
+
+rustflags = [
+
+    "-C", "link-arg=-nostartfiles",
+
+]
+
+```
+
+
+
+### Step 2: Rust Code (Memory-Safe FPGA Interface Example)
+
+
+
+**src/lib.rs:**
+
+```rust
+
+#![no_std]
+
+#![no_main]
+
+
+
+use core::panic::PanicInfo;
+
+use core::slice;
+
+
+
+/// Panic handler for baremetal
+
+#[panic_handler]
+
+fn panic(_info: &PanicInfo) -> ! {
+
+    loop {}
+
+}
+
+
+
+/// Opaque handle to FPGA buffer (hide Rust implementation from C++)
+
+#[repr(C)]
+
+pub struct FpgaBuffer {
+
+    data: *mut u8,
+
+    capacity: usize,
+
+    length: usize,
+
+}
+
+
+
+/// Initialize FPGA buffer (memory-safe allocation using static buffer)
+
+#[no_mangle]
+
+pub extern "C" fn fpga_buffer_init(
+
+    buffer: *mut FpgaBuffer,
+
+    data_ptr: *mut u8,
+
+    capacity: usize
+
+) -> bool {
+
+    if buffer.is_null() || data_ptr.is_null() || capacity == 0 {
+
+        return false;
+
+    }
+
+    
+
+    unsafe {
+
+        (*buffer).data = data_ptr;
+
+        (*buffer).capacity = capacity;
+
+        (*buffer).length = 0;
+
+    }
+
+    true
+
+}
+
+
+
+/// Write data to FPGA buffer with bounds checking (MEMORY SAFE)
+
+#[no_mangle]
+
+pub extern "C" fn fpga_buffer_write(
+
+    buffer: *mut FpgaBuffer,
+
+    data: *const u8,
+
+    len: usize
+
+) -> usize {
+
+    if buffer.is_null() || data.is_null() {
+
+        return 0;
+
+    }
+
+    
+
+    unsafe {
+
+        let buf = &mut *buffer;
+
+        let available = buf.capacity.saturating_sub(buf.length);
+
+        let to_write = len.min(available);
+
+        
+
+        if to_write == 0 {
+
+            return 0;
+
+        }
+
+        // SAFE: bounds checked above
+
+        let dst = slice::from_raw_parts_mut(
+
+            buf.data.add(buf.length),
+
+            to_write
+
+        );
+
+        let src = slice::from_raw_parts(data, to_write);
+
+        dst.copy_from_slice(src);
+
+        
+
+        buf.length += to_write;
+
+        to_write
+
+    }
+
+}
+
+
+
+/// Get Rust library version
+
+#[no_mangle]
+
+pub extern "C" fn crusty_version() -> u32 {
+
+    0x00010000 // v0.2.0
+
+}
+
+```
+
+### Step 3: cbindgen Configuration
+
+**cbindgen.toml:**
+
+```toml
+
+language = "C++"
+
+cpp_compat = true
+
+style = "both"  # Generate both C and C++ compatible headers
+
+
+
+[export]
+
+include = "FpgaBuffer"
+
+exclude = []
+
+
+
+[parse]
+
+parse_deps = false
+
+include = []
+
+
+
+[fn]
+
+rename_args = "None"
+
+args = "auto"
+
+```
+
+### Step 4: Build Script
+
+**build.rs:**
+
+```rust
+
+use std::env;
+
+use std::path::PathBuf;
+
+
+
+fn main() {
+
+    let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+
+    let output_file = PathBuf::from(&crate_dir)
+
+        .join("include")
+
+        .join("crusty_safe.h");
+
+    
+
+    cbindgen::Builder::new()
+
+        .with_crate(crate_dir)
+
+        .with_language(cbindgen::Language::Cxx)
+
+        .with_no_includes()  // baremetal - no standard headers
+
+        .generate()
+
+        .expect("Unable to generate bindings")
+
+        .write_to_file(output_file);
+
+}
+
+```
+
+### Step 5: Build the Rust Library
+
+
+```bash
+
+# Install target
+
+rustup target add thumbv8m.main-none-eabihf
+
+
+
+# Build (generates .a file and headers)
+
+cargo build --release
+
+
+
+# Output files:
+
+# target/thumbv8m.main-none-eabihf/release/libcrusty_safe.a
+
+# include/crusty_safe.h (generated by cbindgen)
+
+```
+
+
+### Step 6: C++ Integration
+
+
+**main.cpp:**
+
+```cpp
+
+#include "crusty_safe.h"  // Generated by cbindgen
+
+#include "stm32u5xx_hal.h"
+
+
+
+// Static buffer for FPGA (no dynamic allocation)
+
+static uint8_t fpga_buffer_storage[4096];
+
+static FpgaBuffer fpga_buf;
+
+
+
+extern "C" int main(void) {
+
+    // STM32 HAL init (your existing code)
+
+    HAL_Init();
+
+    SystemClock_Config();
+
+    
+
+    // Initialize Rust library
+
+    uint32_t version = crusty_version();
+
+    
+
+    // Initialize FPGA buffer (memory-safe through Rust)
+
+    if (!fpga_buffer_init(&fpga_buf, fpga_buffer_storage, 
+
+                          sizeof(fpga_buffer_storage))) {
+
+        Error_Handler();
+
+    }
+
+    
+
+    // Write to FPGA buffer (bounds-checked by Rust)
+
+    uint8_t data[] = {0x01, 0x02, 0x03, 0x04};
+
+    size_t written = fpga_buffer_write(&fpga_buf, data, sizeof(data));
+
+
+    while (1) {
+
+        // Main loop
+
+    }
+
+}
+
+```
+
+
+### Step 7: Makefile Integration
+
+
+**Additions to your Makefile:**
+
+```makefile
+
+# Rust library paths
+
+RUST_LIB = path/to/crusty-safe/target/thumbv8m.main-none-eabihf/release/libcrusty_safe.a
+
+RUST_INCLUDE = -Ipath/to/crusty-safe/include
+
+
+
+# Add to CFLAGS
+
+CFLAGS += $(RUST_INCLUDE)
+
+
+
+# Add to linker
+
+LDFLAGS += $(RUST_LIB)
+
+
+
+# Build rule
+
+$(BUILD_DIR)/$(TARGET).elf: $(OBJECTS) $(RUST_LIB)
+
+	$(CC) $(OBJECTS) $(RUST_LIB) $(LDFLAGS) -o $@
+
+	
+
+# Ensure Rust lib is built
+
+$(RUST_LIB):
+
+	cd path/to/crusty-safe && cargo build --release
+
+```
+
+---
+
+
+## NSA Compliance Strategy
+
+
+For **NSA memory-safety requirements**, this architecture provides:
+
+
+### Memory-Safe Critical Functions (Rust):
+
+1. **FPGA Data Interface** - bounds-checked buffer operations
+
+2. **Packet Parsing** - safe deserialization
+
+3. **Key Management** - memory-safe key storage
+
+
