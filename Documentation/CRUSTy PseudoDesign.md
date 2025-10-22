@@ -6,26 +6,6 @@
 
 3. **C++ calling Rust functions** via FFI (not Rust calling C++)
 
-┌─────────────────────────────────────┐
-│   C++ Main Application (STM32U5A)   │
-│   - Entry point (main)              │
-│   - Existing business logic         │
-│   - Hardware init (STM32CubeMX)     │
-│   - Calls Rust for critical paths   │
-└──────────────┬──────────────────────┘
-               │
-               │ FFI calls via C ABI
-               │
-┌──────────────▼──────────────────────┐
-│   Rust Static Library (.a)          │
-│   - Memory-safe FPGA interface      │
-│   - Encryption functions            │
-│   - Buffer management               │
-│   - Compiled with #![no_std]        │
-└─────────────────────────────────────┘
-
----
-
 ## Rust Static Library + cbindgen
 
 ### Tools Required
