@@ -44,7 +44,7 @@ int main( void )
 
 lib.rs
 
-```lib.rs
+```rust
 #![no_std]
 #![no_main]
 
