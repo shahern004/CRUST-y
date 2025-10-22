@@ -1,11 +1,21 @@
 # CRUST-y
-Researching ways to use Rust for memory safety within a C++ baremetal binary
 
-Building with g++ using mingw32-make
+This project is researching design for a hybrid C++ binary using Rust code for memory safety on embedded baremetal hardware.
 
-Reference Code:
+### Dev Environment
 
-main.cpp
+- OS: Windows 11 using vsCode
+- Compiler: G++ using mingw32-make
+
+### Baremetal Embedded Environment
+
+- STM32 Processor (exact type unknown at the moment)
+- AMD Kintex Ultrascale KU5P FPGA cryptographic processor
+
+
+## Reference Code
+
+### main.cpp
 
 ```main.cpp
 #ifdef _cplusplus
@@ -42,7 +52,7 @@ int main( void )
 }
 ```
 
-lib.rs
+### lib.rs
 
 ```rust
 #![no_std]
