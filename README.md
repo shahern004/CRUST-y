@@ -5,8 +5,7 @@ Building with g++ using mingw32-make
 
 Reference Code:
 
-C++:
-
+```c++
 #ifdef _cplusplus
 extern "C"
 {
@@ -39,9 +38,11 @@ int main( void )
 
     launchApplication();
 }
+```
 
-Rust:
 
+
+```Rust
 #![no_std]
 #![no_main]
 
@@ -143,3 +144,4 @@ pub extern "C" fn rust_read_message(base_address: u32, data: *mut u16, data_len:
     
     return size_read;
 }
+```
