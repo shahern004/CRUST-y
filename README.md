@@ -5,6 +5,8 @@ Building with g++ using mingw32-make
 
 Reference Code:
 
+main.cpp
+
 ```main.cpp
 #ifdef _cplusplus
 extern "C"
@@ -40,7 +42,7 @@ int main( void )
 }
 ```
 
-
+lib.rs
 
 ```lib.rs
 #![no_std]
