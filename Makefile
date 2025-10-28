@@ -10,7 +10,7 @@ TARGET_EXEC := crusty_firmware.exe
 BUILD_DIR := build
 SRC_DIR := src
 INC_DIR := include
-RUST_DIR := Rust
+RUST_DIR := C:\GithubProjects\CRUST-y\rust
 
 # ============================================================================
 # Compiler and Tools (Windows MinGW)
@@ -25,7 +25,7 @@ CARGO := cargo
 
 # CXX generates these files during Rust build
 # Note: Uses package name (crusty-firmware) not library name (crusty)
-CXX_BRIDGE_DIR := $(RUST_DIR)/target/cxxbridge/crusty-firmware/src
+CXX_BRIDGE_DIR := $(RUST_DIR)/target/x86_64-pc-windows-gnu/cxxbridge/crusty-firmware/src
 CXX_HEADER := $(CXX_BRIDGE_DIR)/lib.rs.h
 CXX_SOURCE := $(CXX_BRIDGE_DIR)/lib.rs.cc
 CXX_CXX_HEADER := $(RUST_DIR)/target/cxxbridge/rust/cxx.h

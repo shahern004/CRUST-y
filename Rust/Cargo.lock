@@ -136,6 +136,7 @@ dependencies = [
  "critical-section",
  "cxx",
  "cxx-build",
+ "cxxbridge-macro",
  "embedded-alloc",
 ]
 
