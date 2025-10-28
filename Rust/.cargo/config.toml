@@ -1,0 +1,6 @@
+# Cargo configuration for CRUST-y Rust library
+# Force use of GNU (MinGW) target to match C++ toolchain
+
+[build]
+# Use x86_64-pc-windows-gnu instead of MSVC to match MinGW g++
+target = "x86_64-pc-windows-gnu"

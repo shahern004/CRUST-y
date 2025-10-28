@@ -41,3 +41,12 @@
 *.dwo
 .vscode/settings.json
 .vscode/tasks.json
+.mcp.json
+.gitignore
+CLAUDE.md
+nul
+.claude/settings.local.json
+.gitignore
+.gitignore
+Documentation/PHASE0_READY_FOR_TESTING.md
+Documentation/SESSION_SUMMARY.md

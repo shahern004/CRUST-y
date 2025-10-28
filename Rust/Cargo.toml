@@ -1,0 +1,53 @@
+[package]
+name = "crusty-firmware"
+version = "0.1.0"
+edition = "2021"
+authors = ["CRUST-y Development Team"]
+
+[lib]
+name = "crusty"
+crate-type = ["staticlib"]
+
+[dependencies]
+# CXX for safe C++/Rust FFI
+# On Windows (std-test feature): use default features
+# On baremetal (no features): use no_std with alloc
+cxx = "1.0"
+
+# Embedded allocator for baremetal environments only
+embedded-alloc = { version = "0.6", optional = true }
+
+# Critical section for baremetal only
+critical-section = { version = "1.1", optional = true }
+
+# Cortex-M support for ARM embedded (will be used in production build)
+cortex-m = { version = "0.7", features = ["critical-section-single-core"], optional = true }
+cortex-m-rt = { version = "0.7", optional = true }
+
+[build-dependencies]
+cxx-build = "1.0"
+
+[features]
+# Default: Build for Windows development with std
+default = ["std-test"]
+
+# Feature for testing on host (Windows with std)
+std-test = []
+
+# Enable for actual STM32 baremetal deployment
+baremetal = ["embedded-alloc", "critical-section", "cortex-m", "cortex-m-rt"]
+
+[profile.dev]
+# Optimize for debugging during development
+opt-level = 1
+debug = true
+lto = false
+
+[profile.release]
+# Optimize for size for embedded target
+opt-level = "z"     # Optimize for size
+lto = true          # Link-time optimization
+codegen-units = 1   # Better optimization
+debug = false
+panic = "abort"     # No unwinding on panic
+strip = true        # Strip symbols

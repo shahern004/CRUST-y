@@ -1,32 +1,217 @@
-# Windows-native Makefile for MinGW
-TARGET_EXEC := main.exe
+# CRUST-y Makefile for hybrid C++/Rust firmware
+# Windows-native build using MinGW (for development/testing)
+# Note: For actual STM32 deployment, use ARM cross-compiler
 
+# ============================================================================
+# Build Configuration
+# ============================================================================
+
+TARGET_EXEC := crusty_firmware.exe
 BUILD_DIR := build
 SRC_DIR := src
+INC_DIR := include
+RUST_DIR := Rust
 
-# Manually list your source files (simple and explicit for Windows)
-SRCS := $(SRC_DIR)/main.cpp
+# ============================================================================
+# Compiler and Tools (Windows MinGW)
+# ============================================================================
 
-# Generate object file names
-OBJS := $(SRCS:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
+CXX := g++
+CARGO := cargo
 
-# Compiler flags
-CPPFLAGS := -I$(SRC_DIR)
-CXXFLAGS := -Wall -Wextra
+# ============================================================================
+# CXX Bridge Generated Files (Phase 0+)
+# ============================================================================
 
-# Link step
-$(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
+# CXX generates these files during Rust build
+# Note: Uses package name (crusty-firmware) not library name (crusty)
+CXX_BRIDGE_DIR := $(RUST_DIR)/target/cxxbridge/crusty-firmware/src
+CXX_HEADER := $(CXX_BRIDGE_DIR)/lib.rs.h
+CXX_SOURCE := $(CXX_BRIDGE_DIR)/lib.rs.cc
+CXX_CXX_HEADER := $(RUST_DIR)/target/cxxbridge/rust/cxx.h
+# Using MinGW (GNU) target for Rust to match C++ toolchain
+# Generates libcrusty.a instead of crusty.lib (MSVC)
+RUST_LIB := $(RUST_DIR)/target/x86_64-pc-windows-gnu/release/libcrusty.a
+
+# ============================================================================
+# C++ Source Files (Layered Architecture)
+# ============================================================================
+
+# All C++ source files in src/ subdirectories
+CPP_SRCS := $(shell dir /s /b $(SRC_DIR)\*.cpp 2>nul)
+
+# Generate object file paths
+# Note: This is simplified for Windows - each .cpp becomes a .o in build/
+OBJS := $(BUILD_DIR)/main.o \
+        $(BUILD_DIR)/nvic.o \
+        $(BUILD_DIR)/gpio.o \
+        $(BUILD_DIR)/uart.o \
+        $(BUILD_DIR)/logging.o \
+        $(BUILD_DIR)/control.o \
+        $(BUILD_DIR)/cxxbridge.o
+
+# ============================================================================
+# Compiler Flags
+# ============================================================================
+
+# Include paths
+# CRITICAL: Include CXX-generated headers for Phase 0+
+INCLUDES := -I$(INC_DIR) \
+            -I$(CXX_BRIDGE_DIR) \
+            -I$(RUST_DIR)/target/cxxbridge
+
+# C++ compiler flags
+CXXFLAGS := $(INCLUDES) \
+            -std=c++17 \
+            -O2 \
+            -g \
+            -Wall \
+            -Wextra \
+            -DWINDOWS_BUILD
+
+# Linker flags
+# CRITICAL: Link Rust static library and Windows socket library
+# Using MinGW (GNU) target for Rust to match C++ toolchain
+LDFLAGS := -L$(RUST_DIR)/target/x86_64-pc-windows-gnu/release \
+           -lcrusty \
+           -lws2_32 \
+           -luserenv \
+           -lbcrypt \
+           -lntdll
+
+# ============================================================================
+# Build Rules
+# ============================================================================
+
+.PHONY: all clean rust cpp run print-vars
+
+# Default target: Build everything (Phase 0+)
+# CRITICAL ORDER: Rust MUST build first to generate CXX headers
+all: rust cpp
+
+# Build C++ code only (for Step 1 - before CXX integration)
+# Use 'make cpp' for legacy C++-only builds
+cpp: $(BUILD_DIR)/$(TARGET_EXEC)
+
+# Build Rust library with CXX code generation (Phase 0+)
+# This MUST complete before C++ compilation
+rust:
+	@echo ========================================
+	@echo Building Rust library with CXX bridge...
+	@echo ========================================
+	cd $(RUST_DIR) && $(CARGO) build --release
+	@echo ""
+	@echo CXX-generated files:
+	@if exist $(CXX_HEADER) (echo [OK] $(CXX_HEADER)) else (echo [MISSING] $(CXX_HEADER))
+	@if exist $(CXX_SOURCE) (echo [OK] $(CXX_SOURCE)) else (echo [MISSING] $(CXX_SOURCE))
+	@if exist $(RUST_LIB) (echo [OK] $(RUST_LIB)) else (echo [MISSING] $(RUST_LIB))
+	@echo ========================================
+	@echo Rust build complete
+	@echo ========================================
+
+# Link C++ objects with Rust static library
+$(BUILD_DIR)/$(TARGET_EXEC): $(OBJS) $(RUST_LIB)
+	@echo ========================================
+	@echo Linking $(TARGET_EXEC)...
+	@echo ========================================
 	$(CXX) $(OBJS) -o $@ $(LDFLAGS)
+	@echo ========================================
+	@echo Build complete!
+	@echo ========================================
 
-# Compile step
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
+# Compile CXX-generated C++ code (Phase 0+)
+# This file is auto-generated by Rust cargo build
+$(BUILD_DIR)/cxxbridge.o: $(CXX_SOURCE)
 	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+	@echo Compiling CXX bridge (lib.rs.cc)...
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-.PHONY: clean
+# Compile individual C++ source files
+$(BUILD_DIR)/main.o: $(SRC_DIR)/main.cpp $(CXX_HEADER)
+	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
+	@echo Compiling main.cpp...
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/nvic.o: $(SRC_DIR)/hal/nvic.cpp
+	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
+	@echo Compiling nvic.cpp...
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/gpio.o: $(SRC_DIR)/hal/gpio.cpp
+	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
+	@echo Compiling gpio.cpp...
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/uart.o: $(SRC_DIR)/hal/uart.cpp
+	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
+	@echo Compiling uart.cpp...
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/logging.o: $(SRC_DIR)/spinterfaces/logging.cpp
+	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
+	@echo Compiling logging.cpp...
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/control.o: $(SRC_DIR)/components/control.cpp $(CXX_HEADER)
+	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
+	@echo Compiling control.cpp...
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Clean build artifacts
 clean:
+	@echo ========================================
+	@echo Cleaning build artifacts...
+	@echo ========================================
 	@if exist $(BUILD_DIR) rmdir /s /q $(BUILD_DIR)
+	@if exist $(RUST_DIR)\target (cd $(RUST_DIR) && $(CARGO) clean)
+	@echo ========================================
+	@echo Clean complete
+	@echo ========================================
 
-.PHONY: run
+# Run the built executable
 run: $(BUILD_DIR)/$(TARGET_EXEC)
+	@echo ========================================
+	@echo Running $(TARGET_EXEC)...
+	@echo ========================================
 	.\$(BUILD_DIR)\$(TARGET_EXEC)
+
+# ============================================================================
+# Development Helpers
+# ============================================================================
+
+# Print build variables (for debugging Makefile)
+print-vars:
+	@echo OBJS: $(OBJS)
+	@echo CXXFLAGS: $(CXXFLAGS)
+	@echo LDFLAGS: $(LDFLAGS)
+	@echo CXX_HEADER: $(CXX_HEADER)
+	@echo CXX_SOURCE: $(CXX_SOURCE)
+	@echo RUST_LIB: $(RUST_LIB)
+
+# ============================================================================
+# Build Dependency Notes
+# ============================================================================
+#
+# CRITICAL BUILD ORDER (Phase 0+):
+#
+# 1. cargo build --release (Rust)
+#    └─> Generates: lib.rs.h, lib.rs.cc, libcrusty.a
+#
+# 2. g++ -c lib.rs.cc
+#    └─> Compiles CXX-generated C++ code
+#    └─> Outputs: build/cxxbridge.o
+#
+# 3. g++ -c src/*.cpp -I target/cxxbridge/...
+#    └─> Compiles C++ code (includes CXX headers)
+#    └─> Outputs: build/*.o
+#
+# 4. g++ *.o -lcrusty
+#    └─> Links everything together
+#    └─> Outputs: build/crusty_firmware.exe
+#
+# WHY THIS ORDER:
+# - C++ code #includes "crusty/src/lib.rs.h"
+# - This header does NOT exist until Rust builds
+# - Therefore: Rust MUST complete before C++ compilation
+#
+# ============================================================================
