@@ -1,6 +1,10 @@
 #include "crusty/hal/uart.h"
 #include "crusty/hal/mmio.h"
 
+#ifdef WINDOWS_BUILD
+#include <cstdio>  // For putchar
+#endif
+
 namespace crusty {
 namespace hal {
 
@@ -44,6 +48,7 @@ Status UART::init(uintptr_t uartBase, uint32_t baudRate) {
 }
 
 void UART::transmitByte(uintptr_t uartBase, uint8_t data) {
+#ifndef WINDOWS_BUILD
     // Wait for TX register to be empty
     while ((MMIO::read32(uartBase + UART_ISR_OFFSET) & UART_ISR_TXE) == 0) {
         // Busy wait
@@ -51,6 +56,11 @@ void UART::transmitByte(uintptr_t uartBase, uint8_t data) {
 
     // Write data to transmit register
     MMIO::write32(uartBase + UART_TDR_OFFSET, data);
+#else
+    // On Windows, skip hardware access and just output to console
+    (void)uartBase;
+    putchar(data);
+#endif
 }
 
 void UART::transmit(uintptr_t uartBase, const uint8_t* data, size_t length) {
@@ -67,12 +77,18 @@ void UART::transmitString(uintptr_t uartBase, const char* str) {
 }
 
 uint8_t UART::receiveByte(uintptr_t uartBase) {
+#ifndef WINDOWS_BUILD
     // Wait for data to be available
     while ((MMIO::read32(uartBase + UART_ISR_OFFSET) & UART_ISR_RXNE) == 0) {
         // Busy wait
     }
 
     return static_cast<uint8_t>(MMIO::read32(uartBase + UART_RDR_OFFSET));
+#else
+    // On Windows, stub - return 0
+    (void)uartBase;
+    return 0;
+#endif
 }
 
 bool UART::isDataAvailable(uintptr_t uartBase) {

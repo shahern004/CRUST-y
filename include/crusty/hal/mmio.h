@@ -20,8 +20,14 @@ public:
      * @return Value read from register
      */
     static inline uint32_t read32(uintptr_t address) {
+#ifdef WINDOWS_BUILD
+        // Stub for Windows - return dummy value
+        (void)address;
+        return 0;
+#else
         volatile uint32_t* reg = reinterpret_cast<volatile uint32_t*>(address);
         return *reg;
+#endif
     }
 
     /**
@@ -30,8 +36,14 @@ public:
      * @param value Value to write
      */
     static inline void write32(uintptr_t address, uint32_t value) {
+#ifdef WINDOWS_BUILD
+        // Stub for Windows - no-op
+        (void)address;
+        (void)value;
+#else
         volatile uint32_t* reg = reinterpret_cast<volatile uint32_t*>(address);
         *reg = value;
+#endif
     }
 
     /**
@@ -40,8 +52,13 @@ public:
      * @return Value read from register
      */
     static inline uint16_t read16(uintptr_t address) {
+#ifdef WINDOWS_BUILD
+        (void)address;
+        return 0;
+#else
         volatile uint16_t* reg = reinterpret_cast<volatile uint16_t*>(address);
         return *reg;
+#endif
     }
 
     /**
@@ -50,8 +67,13 @@ public:
      * @param value Value to write
      */
     static inline void write16(uintptr_t address, uint16_t value) {
+#ifdef WINDOWS_BUILD
+        (void)address;
+        (void)value;
+#else
         volatile uint16_t* reg = reinterpret_cast<volatile uint16_t*>(address);
         *reg = value;
+#endif
     }
 
     /**
@@ -60,8 +82,13 @@ public:
      * @return Value read from register
      */
     static inline uint8_t read8(uintptr_t address) {
+#ifdef WINDOWS_BUILD
+        (void)address;
+        return 0;
+#else
         volatile uint8_t* reg = reinterpret_cast<volatile uint8_t*>(address);
         return *reg;
+#endif
     }
 
     /**
@@ -70,8 +97,13 @@ public:
      * @param value Value to write
      */
     static inline void write8(uintptr_t address, uint8_t value) {
+#ifdef WINDOWS_BUILD
+        (void)address;
+        (void)value;
+#else
         volatile uint8_t* reg = reinterpret_cast<volatile uint8_t*>(address);
         *reg = value;
+#endif
     }
 
     /**

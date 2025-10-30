@@ -38,7 +38,7 @@ Layer 1: LowLevelPlatform → Memory map, register definitions
 - Strong typing (Status, PinMode enums)
 - No dynamic allocation
 
-### ✅ Phase 0: CXX Bridge Foundation (Complete - READY FOR TESTING)
+### ✅ Phase 0: CXX Bridge Foundation (✅ **100% COMPLETE**)
 **What**: Established CXX bridge infrastructure for C++/Rust FFI with conditional compilation
 **Critical Requirement**: CXX generates C++ headers that integration code depends on
 
@@ -51,6 +51,11 @@ Layer 1: LowLevelPlatform → Memory map, register definitions
 - ✅ Updated Makefile with proper build order: Rust → C++ → Link
 - ✅ Rust validation functions fully implemented with unit tests
 - ✅ Zero unsafe blocks in validation logic (memory-safe)
+- ✅ **Added demonstration function `calculate_crusty_number()` for FFI testing**
+- ✅ **C++ successfully calls Rust function via CXX bridge**
+- ✅ **Windows HAL stubs implemented (MMIO, UART)**
+- ✅ **Application builds and runs successfully on Windows**
+- ✅ **Output verified: "The CRUSTy number is: 42"**
 
 **Key Architectural Decision: Conditional Compilation Strategy**
 
@@ -75,24 +80,34 @@ Based on research findings (CXX has limited no_std support), implemented hybrid 
 3. Captures CXX no_std limitations as lesson learned
 4. Provides fallback: if CXX incompatible with baremetal, validation logic remains unchanged (only FFI mechanism changes)
 
-**Files Created/Modified**:
+**Files Created/Modified (Initial Setup)**:
 - ✅ `Rust/Cargo.toml` - Conditional features (std-test default, baremetal optional)
 - ✅ `Rust/.cargo/config.toml` - MinGW (GNU) target configuration
 - ✅ `Rust/build.rs` - CXX build configuration with C++17 flags
 - ✅ `Rust/src/lib.rs` - Conditional compilation for std/no_std, full validation implementation
-- ✅ `Makefile` - Full CXX integration with MinGW target paths
-- ✅ `src/main.cpp` - Success message and console pause for testing
+- ✅ `Makefile` - Full CXX integration with MinGW target paths (line 28 fixed)
+- ✅ `src/main.cpp` - CXX bridge integration and demonstration
 - ✅ `src/hal/nvic.cpp` - Conditional ARM assembly for Windows simulation
 
-**Current Status**: 95% complete - CXX header path issue with MinGW target (see [NEXT_SESSION.md](../NEXT_SESSION.md))
+**Files Modified (Windows Build Support - Session 2024)**:
+- ✅ `Rust/src/lib.rs` - Added `calculate_crusty_number()` demonstration function
+- ✅ `src/main.cpp` - Added `#include "lib.rs.h"` and Rust function call
+- ✅ `include/crusty/hal/mmio.h` - Added `#ifdef WINDOWS_BUILD` stubs for all MMIO functions
+- ✅ `src/hal/uart.cpp` - Added `#ifdef WINDOWS_BUILD` with `putchar()` console output
 
-**Known Issue**: CXX headers generated in target-specific path
-- Expected: `Rust/target/cxxbridge/crusty-firmware/src/lib.rs.h`
-- Actual: `Rust/target/x86_64-pc-windows-gnu/cxxbridge/crusty-firmware/src/lib.rs.h`
-- Cause: Custom Rust target in `.cargo/config.toml` changes output directory structure
-- Fix: Update Makefile `CXX_BRIDGE_DIR` to: `$(RUST_DIR)/target/x86_64-pc-windows-gnu/cxxbridge/crusty-firmware/src`
+**Issues Resolved**:
+1. ✅ **CXX Header Path**: Updated Makefile to include target-specific path
+2. ✅ **Access Violation**: Added Windows stubs to MMIO functions (return 0 instead of hardware access)
+3. ✅ **Infinite Loop**: Added Windows bypass to UART polling loops (use console I/O)
 
-**Next Action**: Fix CXX header path in Makefile (line 28), then execute Phase 0 Test Plan
+**Testing Results**:
+- ✅ Build successful (Rust → CXX → C++ → Link)
+- ✅ Executable runs without crashes
+- ✅ All logging output displays via console
+- ✅ Rust function called successfully from C++
+- ✅ Correct output: "The CRUSTy number is: 42"
+
+**Current Status**: 🎉 **100% COMPLETE** - CXX bridge fully functional, ready for Phase 1 (STM32 port)
 
 ### ⏳ Phase 1: Simulated CFPGA FIFO (After Phase 0)
 **What**: Software FIFO in C++ that triggers interrupts and outputs CXX-compatible data
@@ -354,6 +369,105 @@ CXX_BRIDGE_DIR := $(RUST_DIR)/target/x86_64-pc-windows-gnu/cxxbridge/crusty-firm
 - Both use embedded-GCC ABI - consistent toolchain family
 
 **Value**: Ensures clean linking without runtime dependency mismatches
+
+---
+
+### Lesson 4: Windows Development Requires Hardware Abstraction Stubs (Phase 0)
+
+**Finding**: Direct hardware memory access causes crashes on Windows development builds
+
+**Issues Encountered**:
+1. **Access Violation (0xC0000005)**:
+   - MMIO functions dereferenced hardware memory addresses
+   - Addresses like `0x40000000` (GPIO base) don't exist on Windows
+   - Result: Instant crash when reading/writing registers
+
+2. **Infinite Loops in UART**:
+   - UART polling loops wait for hardware status bits
+   - On Windows, `MMIO::read32()` returned 0
+   - Condition `(0 & UART_ISR_TXE) == 0` always true
+   - Result: Application hung at 3-5% CPU in infinite loop
+
+**Solution Implemented**:
+Conditional compilation for all hardware-accessing code:
+
+```cpp
+// MMIO example
+static inline uint32_t read32(uintptr_t address) {
+#ifdef WINDOWS_BUILD
+    (void)address;
+    return 0;  // Safe stub
+#else
+    volatile uint32_t* reg = reinterpret_cast<volatile uint32_t*>(address);
+    return *reg;  // Real hardware
+#endif
+}
+
+// UART example
+void UART::transmitByte(uintptr_t uartBase, uint8_t data) {
+#ifndef WINDOWS_BUILD
+    while ((MMIO::read32(uartBase + UART_ISR_OFFSET) & UART_ISR_TXE) == 0) {}
+    MMIO::write32(uartBase + UART_TDR_OFFSET, data);
+#else
+    (void)uartBase;
+    putchar(data);  // Console output
+#endif
+}
+```
+
+**Files Modified**:
+- `include/crusty/hal/mmio.h` - All 6 MMIO functions stubbed
+- `src/hal/uart.cpp` - Transmit/receive functions use console I/O
+
+**Benefits**:
+- ✅ Enables Windows development and testing
+- ✅ Fast iteration without hardware
+- ✅ Validates architecture before deployment
+- ✅ Same codebase for development and production
+
+**Value**: Critical for rapid prototyping and CI/CD without hardware in the loop
+
+---
+
+### Lesson 5: CXX Bridge Function Declaration Pattern (Phase 0)
+
+**Finding**: CXX bridge functions do NOT use `extern` keyword in implementation
+
+**Common Misconception**:
+Developers might think functions need `extern "C"` or `extern` in implementation
+
+**Correct Pattern**:
+```rust
+// Declaration in CXX bridge
+#[cxx::bridge]
+mod ffi {
+    extern "Rust" {
+        fn calculate_crusty_number() -> u32;  // Declaration only
+    }
+}
+
+// Implementation in parent module
+pub fn calculate_crusty_number() -> u32 {  // Regular pub fn, NOT extern
+    41 + 1
+}
+```
+
+**Why It Works**:
+- `extern "Rust"` block is just a declaration to CXX
+- CXX generates all FFI shims automatically
+- Implementation is normal Rust code (pub fn)
+- No manual `extern "C"` or `#[no_mangle]` needed
+
+**What CXX Generates**:
+- C++ header with function declaration
+- C++ implementation with FFI calling conventions
+- Rust FFI shims with proper ABI
+- All automatically, zero boilerplate
+
+**Documentation Reference**:
+From CXX docs: "Your function implementations themselves, whether in C++ or Rust, do not need to be defined as extern 'C' ABI or no_mangle. CXX will put in the right shims where necessary to make it all work."
+
+**Value**: Simplifies FFI development, eliminates common mistakes, reduces unsafe code
 
 ---
 

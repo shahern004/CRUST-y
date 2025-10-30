@@ -124,6 +124,15 @@ mod ffi {
         /// # Returns
         /// ValidationResult indicating success or specific error
         fn validate_status_data(data: &[u16]) -> ValidationResult;
+
+        /// Calculate the CRUSTy number (demonstration function)
+        ///
+        /// Simple demonstration of C++/Rust FFI integration
+        /// Calculates 41 + 1 and returns 42
+        ///
+        /// # Returns
+        /// The CRUSTy number: 42
+        fn calculate_crusty_number() -> u32;
     }
 
     // ------------------------------------------------------------------------
@@ -271,6 +280,23 @@ pub fn validate_status_data(data: &[u16]) -> ffi::ValidationResult {
         is_valid: true,
         error_code: error_codes::ERROR_NONE,
     }
+}
+
+/// Calculate the CRUSTy number
+///
+/// Simple demonstration function showing C++/Rust FFI integration via CXX bridge
+/// Performs the calculation: 41 + 1 = 42
+///
+/// This function demonstrates:
+/// - Memory-safe arithmetic in Rust
+/// - Zero-overhead FFI calls via CXX
+/// - Simple data passing across the language boundary
+///
+/// # Returns
+/// * `u32` - The CRUSTy number (42)
+pub fn calculate_crusty_number() -> u32 {
+    let result = 41 + 1;
+    result
 }
 
 // ============================================================================

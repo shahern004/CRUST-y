@@ -16,6 +16,9 @@
 #include "crusty/spinterfaces/logging.h"
 #include "crusty/components/control.h"
 
+// Include CXX-generated Rust FFI bridge (Phase 0+)
+#include "lib.rs.h"
+
 #ifdef WINDOWS_BUILD
 #include <iostream>  // For console input to pause on Windows
 #endif
@@ -105,10 +108,24 @@ int main(void) {
     // Blink LED to indicate running
     hal::GPIO::setPin(platform::GPIOB_BASE, 7);
 
-    // Phase 0: Binary initialization test only
-    // (FIFO simulation and Rust integration come in later phases)
+    // Phase 0: CXX Bridge Integration Test
     spinterfaces::Logging::logInfo("==============================================");
-    spinterfaces::Logging::logInfo("Binary successfully initialized!");
+    spinterfaces::Logging::logInfo("Testing C++/Rust integration via CXX bridge");
+    spinterfaces::Logging::logInfo("==============================================");
+
+    // Call Rust function to calculate the CRUSTy number
+    uint32_t crusty_number = calculate_crusty_number();
+
+    // Output result
+#ifdef WINDOWS_BUILD
+    std::cout << "The CRUSTy number is: " << crusty_number << std::endl;
+#else
+    // For baremetal, format and log via UART
+    char buffer[64];
+    snprintf(buffer, sizeof(buffer), "The CRUSTy number is: %u", crusty_number);
+    spinterfaces::Logging::logInfo(buffer);
+#endif
+
     spinterfaces::Logging::logInfo("==============================================");
     spinterfaces::Logging::logInfo("Phase 0 complete - CXX bridge functional");
     spinterfaces::Logging::logInfo("Press Enter to exit...");
