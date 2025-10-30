@@ -1,6 +1,14 @@
 # Cargo configuration for CRUST-y Rust library
-# Force use of GNU (MinGW) target to match C++ toolchain
+# Supports both Windows development (MinGW) and ARM baremetal targets
 
 [build]
-# Use x86_64-pc-windows-gnu instead of MSVC to match MinGW g++
+# Default target for Windows development (matches MinGW g++)
+# Override with: cargo build --target thumbv8m.main-none-eabihf
 target = "x86_64-pc-windows-gnu"
+
+# ARM Cortex-M33 target configuration for STM32H573
+[target.thumbv8m.main-none-eabihf]
+rustflags = [
+  "-C", "link-arg=-nostartfiles",     # We provide our own startup code
+  "-C", "link-arg=-Wl,--gc-sections",  # Remove unused sections
+]

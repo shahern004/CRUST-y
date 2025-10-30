@@ -1,481 +1,608 @@
-# Next Session: Phase 0 to Phase 1 Transition - STM32 Port Preparation
+# Next Session: STM32 Migration - Hybrid Approach with STM32CubeH5
 
-## Current Status
-
-**Phase 0 Implementation**: ✅ **100% COMPLETE**
-
-### Completed This Session:
-- ✅ CXX bridge fully functional with demonstration function
-- ✅ Rust `calculate_crusty_number()` function implemented (returns 42)
-- ✅ C++ successfully calls Rust via CXX bridge
-- ✅ Windows build environment fully working
-- ✅ MMIO functions stubbed for Windows (conditional compilation)
-- ✅ UART functions stubbed for Windows (console output via `putchar`)
-- ✅ Application runs successfully on Windows
-- ✅ Output verified: "The CRUSTy number is: 42"
-
-### Build System Status:
-- ✅ Makefile paths corrected for MinGW target
-- ✅ Rust builds with CXX bridge (x86_64-pc-windows-gnu)
-- ✅ CXX generates headers in correct location
-- ✅ C++ compilation successful
-- ✅ Linking successful
-- ✅ Executable runs without crashes
+**Date:** October 30, 2025
+**Current Phase:** Phase 0 Complete → Phase 1 (System Initialization)
+**Strategy:** **HYBRID APPROACH** - Leverage STM32CubeH5 package while maintaining our architecture
 
 ---
 
-## What Was Implemented
+## Executive Summary
 
-### 1. CXX Bridge Demonstration Function
+We are adopting a **hybrid approach** that combines:
+- ✅ **Official ST tools** (STM32CubeMX for code generation)
+- ✅ **STM32CubeH5 package** (HAL drivers, examples, register definitions)
+- ✅ **Our custom architecture** (5-layer design, Rust validation)
+- ✅ **Our build system** (Makefile with dual Windows/ARM targets)
 
-**File**: `Rust/src/lib.rs`
+This approach **eliminates low-level errors** (clock misconfiguration, register mistakes) while **maintaining architectural flexibility**.
 
-Added simple demonstration function to test C++/Rust FFI:
+---
 
-```rust
-#[cxx::bridge]
-mod ffi {
-    extern "Rust" {
-        // Existing validation functions...
-        fn validate_control_message(msg: &ControlMessage) -> ValidationResult;
-        fn validate_status_data(data: &[u16]) -> ValidationResult;
+## Current Status Summary
 
-        // NEW: Demonstration function
-        fn calculate_crusty_number() -> u32;
+### Phase 0: CXX Bridge Foundation ✅ 100% COMPLETE
+
+**Achievements:**
+- ✅ Rust library builds successfully (std and no_std modes)
+- ✅ CXX bridge generates FFI bindings automatically
+- ✅ C++ successfully calls Rust functions
+- ✅ Validation functions implemented (100% memory-safe)
+- ✅ Windows development build working
+- ✅ Conditional compilation for Windows/STM32
+
+**Files Complete:**
+- `rust/src/lib.rs` - CXX bridge definitions
+- `rust/src/validation.rs` - Memory-safe validation logic
+- `rust/Cargo.toml` - Dual feature configuration
+- `Makefile` - Windows build system
+- All Layer 1-5 C++ infrastructure (Windows mode)
+
+### STM32 Migration Preparation ✅ INFRASTRUCTURE READY
+
+**Completed This Session:**
+- ✅ Rust ARM target installed (`thumbv8m.main-none-eabihf`)
+- ✅ Cargo configured for ARM Cortex-M33
+- ✅ Linker script created (`stm32h573.ld`)
+- ✅ Startup code created (`startup.s` with full vector table)
+- ✅ STM32CubeH5 package available locally
+- ✅ Migration plan documented
+
+**New Files:**
+- `stm32h573.ld` - Memory layout for STM32H573
+- `startup.s` - Reset handler + 116 interrupt vectors
+- `rust/.cargo/config.toml` - ARM target configuration
+- `Documentation/STM32_MIGRATION_PLAN.md` - Comprehensive migration guide
+
+---
+
+## NEW STRATEGY: Hybrid Approach
+
+### What Changed?
+
+**Original Plan:**
+- Build all system initialization from scratch
+- Manually configure clocks, peripherals
+- High risk of register configuration errors
+
+**New Hybrid Plan:**
+- Use **STM32CubeMX** to generate initialization code
+- Reference **STM32CubeH5 HAL examples** for correct configurations
+- Adapt generated code to our architecture
+- **Lower risk, faster development, correct-by-design**
+
+### Available Resources (STM32CubeH5 Package)
+
+Located at: `C:\GithubProjects\CRUST-y\STM32CubeH5\`
+
+| Resource | Location | How We'll Use It |
+|----------|----------|------------------|
+| **Official Register Definitions** | `Drivers/CMSIS/Device/ST/STM32H5xx/Include/stm32h573xx.h` | Include in our platform layer |
+| **System Init Template** | `Drivers/CMSIS/Device/ST/STM32H5xx/Source/Templates/system_stm32h5xx.c` | Adapt for our `system_init.cpp` |
+| **Startup Code Reference** | `Source/Templates/startup_stm32h573xx.s` | Already used as reference ✅ |
+| **HAL Driver Examples** | `Projects/STM32H573I-DK/Examples/` | Reference for UART/GPIO/NVIC |
+| **26 Board Examples** | `Projects/STM32H573I-DK/Examples/GPIO/`, etc. | Verify our implementations |
+| **Template Projects** | `Projects/STM32H573I-DK/Templates/` | Empty project structure |
+
+### What STM32CubeMX Will Generate
+
+When we run STM32CubeMX in the next session:
+
+1. **Clock Configuration**
+   - HSI → PLL configuration for 250 MHz
+   - All prescaler settings (AHB, APB1/2/3)
+   - Flash wait states
+   - Power regulator voltage scaling
+
+2. **Peripheral Initialization**
+   - UART4 configuration (115200 baud, 8N1)
+   - GPIO port clock enables
+   - NVIC interrupt priorities
+
+3. **Generated Files**
+   - `system_stm32h5xx.c` - System clock initialization
+   - `main.c` - Peripheral initialization examples
+   - `stm32h5xx_hal_conf.h` - HAL configuration
+
+**We will:** Copy relevant functions, adapt to C++, integrate into our `system_init.cpp`
+
+---
+
+## Next Session Immediate Tasks
+
+### PRIORITY 1: Install ARM GCC Toolchain ⏰ 15 min
+
+**Current Status:** ⚠️ `arm-none-eabi-gcc: command not found`
+
+**Action:**
+1. Download: https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads
+   - Version: 13.2.rel1 or later
+   - Platform: Windows (mingw-w64-i686)
+   - Architecture: arm-none-eabi
+
+2. Install to: `C:\Program Files (x86)\Arm GNU Toolchain\`
+
+3. Add to PATH:
+   ```
+   C:\Program Files (x86)\Arm GNU Toolchain\arm-none-eabi\bin
+   ```
+
+4. Verify:
+   ```bash
+   arm-none-eabi-gcc --version
+   arm-none-eabi-g++ --version
+   arm-none-eabi-size --version
+   ```
+
+**Why Critical:** Cannot build ARM binaries without this toolchain.
+
+---
+
+### PRIORITY 2: Generate System Init Code with STM32CubeMX ⏰ 30 min
+
+**Goal:** Generate clock configuration and peripheral initialization code
+
+**Steps:**
+
+1. **Launch STM32CubeMX**
+   - New Project → Board Selector
+   - Search: "STM32H573I-DK"
+   - Select: STM32H573I-DK board
+   - Initialize all peripherals with default mode: **NO** (we'll add manually)
+
+2. **Configure System Clock**
+   - Pinout & Configuration → System Core → RCC
+   - HSI: ON (64 MHz internal oscillator)
+   - System Clock Mux: PLLCLK
+   - PLL Source: HSI
+   - PLL Configuration:
+     - PLLM (divider): 4 (64 MHz / 4 = 16 MHz)
+     - PLLN (multiplier): 125 (16 MHz × 125 = 2000 MHz)
+     - PLLP (divider): 8 (2000 MHz / 8 = 250 MHz) ← **SYSCLK**
+   - HCLK (AHB): 250 MHz (no division)
+   - APB1/2/3 Prescaler: /1 (all 250 MHz)
+
+3. **Configure UART4 (Debug Logging)**
+   - Pinout & Configuration → Connectivity → UART4
+   - Mode: Asynchronous
+   - Baud Rate: 115200
+   - Word Length: 8 Bits
+   - Parity: None
+   - Stop Bits: 1
+   - Pins: PH13 (TX), PH14 (RX) - Board defaults
+
+4. **Configure GPIO (Test Pin)**
+   - Pinout & Configuration → System Core → GPIO
+   - Find LED pin (check board schematic)
+   - Set as GPIO_Output
+   - Label: "LED_GREEN"
+
+5. **Configure NVIC**
+   - Pinout & Configuration → System Core → NVIC
+   - Enable: UART4 global interrupt (priority 0)
+   - Enable: EXTI line 2 interrupt (priority 0)
+
+6. **Project Settings**
+   - Project → Settings
+   - Project Name: "CubeMX_Generated"
+   - Project Location: `C:\GithubProjects\CRUST-y\CubeMX_Generated\`
+   - Toolchain: Makefile
+   - **DO NOT** use HAL libraries (we'll reference only)
+
+7. **Generate Code**
+   - Project → Generate Code
+   - Open Project Folder
+
+8. **Review Generated Files**
+   ```
+   CubeMX_Generated/
+   ├── Core/
+   │   ├── Src/
+   │   │   ├── system_stm32h5xx.c   ← Clock init - COPY THIS
+   │   │   ├── main.c               ← Peripheral init examples
+   │   │   └── stm32h5xx_it.c       ← ISR handlers
+   │   └── Inc/
+   │       ├── stm32h5xx_hal_conf.h ← HAL config
+   │       └── main.h
+   └── Makefile                      ← Reference for compiler flags
+   ```
+
+**Deliverable:** `CubeMX_Generated/` folder with initialization code
+
+---
+
+### PRIORITY 3: Create system_init.cpp ⏰ 45 min
+
+**Goal:** Adapt CubeMX-generated clock configuration to our C++ architecture
+
+**Create:** `src/platform/system_init.cpp`
+
+**Template Structure:**
+```cpp
+#include "crusty/platform/system_init.h"
+#include "stm32h573xx.h"  // ST's register definitions
+
+namespace crusty {
+namespace platform {
+
+// Private functions (adapted from CubeMX system_stm32h5xx.c)
+namespace {
+    void configurePLL() {
+        // Enable HSI
+        RCC->CR |= RCC_CR_HSION;
+        while ((RCC->CR & RCC_CR_HSIRDY) == 0);  // Wait for HSI ready
+
+        // Configure PLL (250 MHz from HSI 64 MHz)
+        // [Adapted from CubeMX generated code]
+        RCC->PLLCFGR = ...;
+        // Enable PLL
+        RCC->CR |= RCC_CR_PLLON;
+        while ((RCC->CR & RCC_CR_PLLRDY) == 0);  // Wait for PLL lock
+    }
+
+    void configureFlash() {
+        // Set flash wait states for 250 MHz
+        FLASH->ACR = ...;  // From CubeMX
+    }
+
+    void switchToPLL() {
+        // Switch system clock to PLL
+        RCC->CFGR |= RCC_CFGR_SW_PLL;
+        while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL);
+    }
+
+    void enablePeripheralClocks() {
+        // Enable GPIO clocks
+        RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN | RCC_AHB2ENR_GPIOBEN;
+        // Enable UART4 clock
+        RCC->APB1ENR |= RCC_APB1ENR_UART4EN;
     }
 }
 
-// Implementation (in parent module scope)
-pub fn calculate_crusty_number() -> u32 {
-    41 + 1  // Returns 42
+// Public API
+void systemInit() {
+    configureFlash();
+    configurePLL();
+    switchToPLL();
+    enablePeripheralClocks();
 }
+
+uint32_t getSystemClock() {
+    return 250000000;  // 250 MHz
+}
+
+} // namespace platform
+} // namespace crusty
 ```
 
-**Key Design Points**:
-- Function declared in `extern "Rust"` block (CXX bridge)
-- Implementation uses regular `pub fn` (not `extern fn`)
-- CXX automatically generates C++ headers and FFI shims
-- Zero-overhead FFI call from C++
-
-### 2. C++ Integration
-
-**File**: `src/main.cpp`
-
+**Header:** `include/crusty/platform/system_init.h`
 ```cpp
-#include "lib.rs.h"  // CXX-generated header
+#ifndef CRUSTY_PLATFORM_SYSTEM_INIT_H
+#define CRUSTY_PLATFORM_SYSTEM_INIT_H
 
-int main() {
-    // ... platform initialization ...
+#include <cstdint>
 
-    // Call Rust function
-    uint32_t crusty_number = calculate_crusty_number();
+namespace crusty {
+namespace platform {
 
-    // Output result
-    #ifdef WINDOWS_BUILD
-        std::cout << "The CRUSTy number is: " << crusty_number << std::endl;
-    #endif
+void systemInit();
+uint32_t getSystemClock();
 
-    return 0;
-}
-```
+} // namespace platform
+} // namespace crusty
 
-### 3. Windows Build Support (Critical Fixes)
-
-**Files Modified**:
-- `include/crusty/hal/mmio.h` - All MMIO functions now conditionally compiled
-- `src/hal/uart.cpp` - UART functions use console I/O on Windows
-
-**Problem Solved**:
-- Original code tried to access hardware memory addresses on Windows
-- Caused access violation (Error -1073741819 / 0xC0000005)
-- UART had infinite loops waiting for hardware status bits
-
-**Solution**:
-```cpp
-// MMIO example (mmio.h)
-static inline uint32_t read32(uintptr_t address) {
-#ifdef WINDOWS_BUILD
-    (void)address;
-    return 0;  // Stub - return dummy value
-#else
-    volatile uint32_t* reg = reinterpret_cast<volatile uint32_t*>(address);
-    return *reg;  // Real hardware access
 #endif
-}
-
-// UART example (uart.cpp)
-void UART::transmitByte(uintptr_t uartBase, uint8_t data) {
-#ifndef WINDOWS_BUILD
-    // Wait for TX register, write to hardware
-    while ((MMIO::read32(uartBase + UART_ISR_OFFSET) & UART_ISR_TXE) == 0) {}
-    MMIO::write32(uartBase + UART_TDR_OFFSET, data);
-#else
-    // Windows: output to console
-    (void)uartBase;
-    putchar(data);
-#endif
-}
 ```
 
-### 4. Verified Output
-
-**Console Output** (Windows):
-```
-[INFO] === CRUST-y Firmware Starting ===
-[INFO] Platform: STM32H573I-DK
-[INFO] Platform initialization complete
-[INFO] Initializing devices...
-[INFO] Device initialization complete
-[INFO] Initializing components...
-[INFO] All layers initialized successfully
-[INFO] Starting main application loop
-[INFO] ==============================================
-[INFO] Testing C++/Rust integration via CXX bridge
-[INFO] ==============================================
-The CRUSTy number is: 42
-[INFO] ==============================================
-[INFO] Phase 0 complete - CXX bridge functional
-[INFO] Press Enter to exit...
-```
+**Integration Point:** Call from `main.cpp` before any peripheral initialization
 
 ---
 
-## Files Modified This Session
+### PRIORITY 4: Update Makefile for ARM Target ⏰ 30 min
 
-### Modified:
-1. **`Rust/src/lib.rs`**
-   - Added `calculate_crusty_number()` to CXX bridge declaration
-   - Implemented function (returns 41 + 1)
+**Goal:** Support `make TARGET=arm` to build for STM32H573
 
-2. **`src/main.cpp`**
-   - Added `#include "lib.rs.h"` for CXX bridge
-   - Added call to `calculate_crusty_number()`
-   - Added output with conditional compilation
+**Key Changes:**
 
-3. **`include/crusty/hal/mmio.h`**
-   - Added `#ifdef WINDOWS_BUILD` stubs for all functions:
-     - `read32()`, `write32()`, `read16()`, `write16()`, `read8()`, `write8()`
-   - Windows: Returns 0 for reads, no-op for writes
-   - STM32: Actual hardware memory access
-
-4. **`src/hal/uart.cpp`**
-   - Added `#include <cstdio>` for Windows
-   - Added `#ifdef WINDOWS_BUILD` to `transmitByte()` and `receiveByte()`
-   - Windows: Uses `putchar()` for console output
-   - STM32: Actual UART hardware access
-
----
-
-## Phase 0 Completion Criteria ✅
-
-All criteria met:
-
-1. ✅ Rust builds with CXX bridge (MinGW target)
-2. ✅ CXX generates headers and implementation files
-3. ✅ C++ includes CXX headers successfully
-4. ✅ Linking combines C++ + Rust static library
-5. ✅ Binary runs and outputs expected message
-6. ✅ No crashes or runtime errors
-7. ✅ C++ successfully calls Rust function via FFI
-8. ✅ Rust function executes and returns correct value
-
-**Phase 0 Status**: 🎉 **COMPLETE**
-
----
-
-## Next Session: STM32 Port Preparation (Phase 1 Start)
-
-### Overview
-
-**Goal**: Prepare project for STM32H573I-DK baremetal deployment
-
-**Key Tasks**:
-1. Configure ARM Cortex-M33 toolchain
-2. Create custom Rust target for STM32H573
-3. Update build system for cross-compilation
-4. Remove Windows stubs, enable real hardware
-5. Configure linker scripts for STM32 memory layout
-6. Test on actual hardware
-
-### Task Breakdown
-
-#### 1. Rust Toolchain Setup for ARM
-
-**Actions**:
-- Install ARM target: `rustup target add thumbv8m.main-none-eabihf`
-- Verify Cortex-M33 support (STM32H573 = Cortex-M33 with FPU)
-- Create custom target JSON if needed for specific features
-- Update `.cargo/config.toml` for ARM target
-
-**Target Triple**: `thumbv8m.main-none-eabihf`
-- `thumbv8m.main` = ARMv8-M Mainline (Cortex-M33)
-- `none` = No OS (baremetal)
-- `eabihf` = Embedded ABI, Hard Float
-
-#### 2. C++ ARM Toolchain Setup
-
-**Actions**:
-- Install ARM GCC toolchain: `arm-none-eabi-gcc`
-- Verify version compatibility with Rust
-- Update Makefile for ARM compiler
-- Configure compiler flags for Cortex-M33
-
-**Compiler Flags** (Example):
 ```makefile
-CXX := arm-none-eabi-g++
-CXXFLAGS := -mcpu=cortex-m33 \
-            -mthumb \
-            -mfpu=fpv5-sp-d16 \
-            -mfloat-abi=hard \
-            -specs=nosys.specs
-```
+# Target selection (new feature)
+TARGET ?= windows
 
-#### 3. Linker Script Configuration
-
-**Actions**:
-- Create STM32H573 linker script (`stm32h573.ld`)
-- Define memory regions (Flash @ 0x08000000, RAM @ 0x20000000)
-- Define stack and heap sizes
-- Configure vector table placement
-- Update Makefile to use linker script
-
-**Memory Layout** (STM32H573I-DK):
-```
-MEMORY
-{
-  FLASH (rx)  : ORIGIN = 0x08000000, LENGTH = 2048K
-  RAM (rwx)   : ORIGIN = 0x20000000, LENGTH = 640K
-}
-```
-
-#### 4. Conditional Compilation Cleanup
-
-**Actions**:
-- Remove `#ifdef WINDOWS_BUILD` stubs from MMIO
-- Remove `#ifdef WINDOWS_BUILD` stubs from UART
-- Enable actual hardware access
-- Keep conditional compilation for `no_std` vs `std`
-
-**Note**: Keep Windows build capability by using Cargo features:
-- Feature `std-test` (default) = Windows development
-- Feature `baremetal` = STM32 hardware
-- Or use separate build targets
-
-#### 5. Startup Code and Boot Sequence
-
-**Actions**:
-- Create `startup.s` for ARM Cortex-M33
-- Define reset handler and vector table
-- Initialize `.data` and `.bss` sections
-- Configure system clocks (HSI/HSE, PLL)
-- Call `main()` from reset handler
-
-#### 6. Update Build System
-
-**Makefile Changes**:
-```makefile
-# Target selection
-TARGET := arm  # or 'windows' for development
+# Conditional toolchain configuration
+ifeq ($(TARGET),windows)
+    CXX := g++
+    RUST_TARGET := x86_64-pc-windows-gnu
+    CXXFLAGS := -std=c++17 -O2 -g -DWINDOWS_BUILD
+    LDFLAGS := -lcrusty -lws2_32 -luserenv -lbcrypt -lntdll
+endif
 
 ifeq ($(TARGET),arm)
+    # ARM Cortex-M33 toolchain
     CXX := arm-none-eabi-g++
-    CARGO_TARGET := thumbv8m.main-none-eabihf
-    CARGO_FEATURES := --no-default-features --features baremetal
-    CXXFLAGS := -mcpu=cortex-m33 -mthumb -mfloat-abi=hard
-else
-    CXX := g++
-    CARGO_TARGET := x86_64-pc-windows-gnu
-    CARGO_FEATURES := --features std-test
-    CXXFLAGS := -DWINDOWS_BUILD
+    CC := arm-none-eabi-gcc
+    OBJCOPY := arm-none-eabi-objcopy
+    SIZE := arm-none-eabi-size
+
+    # Rust target
+    RUST_TARGET := thumbv8m.main-none-eabihf
+
+    # ARM-specific flags
+    CPU_FLAGS := -mcpu=cortex-m33 -mthumb -mfpu=fpv5-sp-d16 -mfloat-abi=hard
+    CXXFLAGS := -std=c++17 -O2 -g $(CPU_FLAGS) -fno-exceptions -fno-rtti
+
+    # Include ST CMSIS headers
+    ST_CMSIS := STM32CubeH5/Drivers/CMSIS
+    INCLUDES += -I$(ST_CMSIS)/Device/ST/STM32H5xx/Include
+    INCLUDES += -I$(ST_CMSIS)/Include
+
+    # Linker flags
+    LDFLAGS := -T stm32h573.ld \
+               -Wl,--gc-sections \
+               -specs=nosys.specs \
+               $(CPU_FLAGS)
+
+    # Add startup code
+    OBJS += $(BUILD_DIR)/startup.o
 endif
+
+# Update Rust build to use correct target
+rust:
+    cd $(RUST_DIR) && cargo build --release --target $(RUST_TARGET)
+    # Update CXX bridge paths for selected target
 ```
 
-#### 7. Hardware Abstraction Layer Verification
+**New Build Targets:**
 
-**Actions**:
-- Verify memory map addresses match STM32H573 reference manual
-- Update UART register offsets if needed
-- Verify GPIO register offsets
-- Test NVIC interrupt configuration
-- Validate clock configuration
+```makefile
+# Generate .bin file for flashing
+$(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf
+    $(OBJCOPY) -O binary $< $@
 
-**Reference**: STM32H573 Reference Manual (RM0481)
+# Print size info
+size: $(BUILD_DIR)/crusty_firmware.elf
+    $(SIZE) $<
 
-#### 8. Debugging Setup
-
-**Actions**:
-- Configure OpenOCD for STM32H573I-DK
-- Set up GDB for ARM debugging
-- Create debug launch configurations
-- Configure SWD interface
-- Test connection to hardware
-
-**OpenOCD Config** (Example):
-```
-source [find interface/stlink.cfg]
-source [find target/stm32h5x.cfg]
+# Flash to board (requires STM32CubeProgrammer)
+flash: $(BUILD_DIR)/crusty_firmware.bin
+    STM32_Programmer_CLI -c port=SWD -w $< 0x08000000 -rst
 ```
 
 ---
 
-## Key Decisions Needed Next Session
+### PRIORITY 5: Update Platform Layer ⏰ 20 min
 
-### 1. Build System Strategy
+**Goal:** Use ST's official register definitions
 
-**Option A**: Separate Makefiles
-- `Makefile.windows` - Windows development
-- `Makefile.stm32` - STM32 hardware
-- Pros: Clean separation
-- Cons: Duplication
+**Update:** `include/crusty/platform/stm32h573.h`
 
-**Option B**: Single Makefile with Target Selection
-- `make TARGET=windows` - Windows development
-- `make TARGET=arm` - STM32 hardware
-- Pros: DRY principle
-- Cons: More complex
+```cpp
+#ifndef CRUSTY_PLATFORM_STM32H573_H
+#define CRUSTY_PLATFORM_STM32H573_H
 
-**Recommendation**: Option B (single Makefile with conditionals)
+// Include ST's official CMSIS device header
+#include "stm32h573xx.h"
 
-### 2. Testing Strategy
+namespace crusty {
+namespace platform {
 
-**Option A**: Hardware First
-- Deploy to STM32 immediately
-- Debug on real hardware
-- Pros: Realistic testing
-- Cons: Slower iteration
+// Our abstractions wrap ST definitions
+// All base addresses come from stm32h573xx.h
 
-**Option B**: QEMU Emulation
-- Test with QEMU ARM emulation
-- Debug before hardware
-- Pros: Fast iteration
-- Cons: Emulation limitations
+// Example: UART4 uses ST's definition
+constexpr uintptr_t UART4_BASE_ADDR = UART4_BASE;  // From stm32h573xx.h
 
-**Recommendation**: Option B initially, then hardware
+// RCC (Reset and Clock Control) - already defined by ST
+// GPIO ports - already defined by ST
+// NVIC - already defined by ST
 
-### 3. CXX Bridge on no_std
+// CFPGA simulation - our custom definition
+constexpr uint8_t CFPGA_IRQ = EXTI2_IRQn;  // Use EXTI2 for simulation
 
-**Challenge**: CXX has experimental no_std support
+} // namespace platform
+} // namespace crusty
 
-**Options**:
-1. Use CXX with experimental no_std (documented in DesignLog.md Lesson 1)
-2. Investigate alternatives if issues arise
-3. Implement manual FFI if needed
+#endif
+```
 
-**Current Plan**: Start with CXX no_std, already configured in Cargo.toml
+**Benefit:** All register addresses verified by ST, no manual errors
 
 ---
 
-## Preparation Checklist for Next Session
+## Phase 1 Success Criteria
 
-### Prerequisites:
+At the end of next session, we should have:
 
-- [ ] ARM GCC toolchain installed (`arm-none-eabi-gcc`)
-- [ ] Rust ARM target installed (`rustup target add thumbv8m.main-none-eabihf`)
-- [ ] OpenOCD installed (for hardware debugging)
-- [ ] STM32H573I-DK hardware available
-- [ ] ST-Link drivers installed (for programming/debugging)
-- [ ] STM32H573 reference manual accessible (RM0481)
-- [ ] STM32H573 datasheet accessible (DS13311)
-
-### Documentation to Review:
-
-1. STM32H573 Reference Manual (RM0481)
-   - Memory mapping (Chapter 2)
-   - Boot configuration (Chapter 3)
-   - Clock tree (Chapter 7)
-   - GPIO (Chapter 13)
-   - UART (Chapter 47)
-
-2. ARM Cortex-M33 Technical Reference Manual
-   - NVIC configuration
-   - MPU setup (if used)
-   - FPU configuration
-
-3. Rust Embedded Book
-   - `no_std` best practices
-   - Interrupt handling
-   - Memory management
+- [ ] ARM GCC toolchain installed and verified
+- [ ] STM32CubeMX generated clock configuration code
+- [ ] `system_init.cpp` created with clock/RCC initialization
+- [ ] Makefile supports `TARGET=arm` builds
+- [ ] Platform layer includes ST CMSIS headers
+- [ ] ARM build compiles without errors
+- [ ] Binary size verified (<2MB Flash, <640KB RAM)
 
 ---
 
-## Expected Deliverables Next Session
+## Testing Plan (After Phase 1)
 
-1. **Linker Script**: `stm32h573.ld`
-2. **Startup Code**: `startup.s` or `startup.rs`
-3. **Updated Makefile**: ARM cross-compilation support
-4. **Updated Cargo.toml**: ARM target configuration
-5. **Clock Configuration**: System clock initialization
-6. **First Hardware Test**: LED blink on STM32H573I-DK
-
----
-
-## Key Lessons Learned This Session
-
-### Lesson 3: Windows Development Requires Hardware Stubs
-
-**Finding**: Direct hardware access causes crashes on Windows
-
-**Impact**:
-- MMIO register access → access violation
-- UART polling loops → infinite loops
-- GPIO operations → invalid memory access
-
-**Solution**:
-- Conditional compilation (`#ifdef WINDOWS_BUILD`)
-- Stub functions return safe values on Windows
-- Use console I/O (`putchar`) for UART simulation
-- All functions work correctly on both platforms
-
-**Value**: Enables rapid development and testing on Windows before hardware deployment
-
-### Lesson 4: CXX Bridge Pattern
-
-**Finding**: Functions in `extern "Rust"` don't use `extern` keyword in implementation
-
-**Pattern**:
-- Declaration: `extern "Rust" { fn foo() -> u32; }` (in bridge)
-- Implementation: `pub fn foo() -> u32 { ... }` (in parent module)
-- CXX generates all FFI shims automatically
-
-**Value**: Simplifies FFI development, no manual `extern "C"` needed
-
----
-
-## Quick Reference Commands
-
-**Build for Windows**:
+### Windows Development Build (Still Works)
 ```bash
-mingw32-make clean
-mingw32-make all
-mingw32-make run
+make clean
+make TARGET=windows
+./build/crusty_firmware.exe
+# Expected: Console output, no crashes
 ```
 
-**Check CXX-generated files**:
+### ARM Build (New)
 ```bash
-ls Rust/target/x86_64-pc-windows-gnu/cxxbridge/crusty-firmware/src/
-```
-
-**Run Rust tests**:
-```bash
-cd Rust && cargo test
-```
-
-**Verify toolchains (for next session)**:
-```bash
-arm-none-eabi-gcc --version
-rustup target list | grep thumb
+make clean
+make TARGET=arm
+arm-none-eabi-size build/crusty_firmware.elf
+# Expected: Successful compile, size < 2MB Flash
 ```
 
 ---
 
-## Session Summary
+## File Locations Reference
 
-**Achievements**:
-- ✅ Phase 0 complete - CXX bridge fully functional
-- ✅ Demonstrated C++/Rust FFI with working example
-- ✅ Windows build environment stable and reliable
-- ✅ Foundation ready for STM32 port
+### Existing Files (Working)
+```
+rust/
+├── src/
+│   ├── lib.rs                     ✅ CXX bridge
+│   └── validation.rs              ✅ Memory-safe validation
+└── .cargo/config.toml             ✅ ARM target configured
 
-**Next Focus**: Transition from Windows development to STM32 baremetal deployment
+include/crusty/
+├── platform/
+│   ├── stm32h573.h                ⏳ Update to include ST headers
+│   ├── memory_map.h               ✅ Memory layout
+│   └── types.h                    ✅ Common types
+├── hal/
+│   ├── mmio.h                     ✅ Conditional Windows/ARM
+│   ├── gpio.h/cpp                 ✅ Ready
+│   ├── uart.h/cpp                 ✅ Needs hardware enable
+│   └── nvic.h/cpp                 ✅ Ready
+├── devices/
+│   └── device_base.h              ✅ Base class
+├── spinterfaces/
+│   └── logging.h/cpp              ✅ Ready
+└── components/
+    └── control.h/cpp              ✅ Ready
 
-**Status**: 🎉 Ready for Phase 1 - STM32 Port
+src/
+└── main.cpp                       ✅ Ready (conditional compile)
+```
+
+### New Files (To Create)
+```
+src/platform/
+└── system_init.cpp                ⏳ TODO - From CubeMX
+
+include/crusty/platform/
+└── system_init.h                  ⏳ TODO - API declaration
+
+CubeMX_Generated/                  ⏳ TODO - STM32CubeMX output
+└── Core/Src/system_stm32h5xx.c   ⏳ TODO - Reference for our code
+
+stm32h573.ld                       ✅ DONE
+startup.s                          ✅ DONE
+```
+
+---
+
+## Documentation Updates
+
+### New Documents Created This Session
+
+1. **`Documentation/STM32_MIGRATION_PLAN.md`** ✅
+   - Comprehensive hybrid approach strategy
+   - Phase-by-phase implementation guide
+   - All tool download links
+   - Risk mitigation strategies
+
+2. **`Documentation/NEXT_SESSION.md`** ✅ (This file)
+   - Updated with hybrid approach
+   - Immediate action items
+   - STM32CubeMX configuration steps
+
+### Documents to Update Next Session
+
+- [ ] `Documentation/DesignLog.md` - Add Phase 1 entries
+- [ ] `Documentation/ARCHITECTURE.md` - Update with ST integration details
+- [ ] `README.md` - Add ARM build instructions
+
+---
+
+## Key Design Decisions
+
+### Why Hybrid Approach?
+
+| Aspect | Full Custom | Hybrid with ST | Winner |
+|--------|-------------|----------------|--------|
+| Clock Setup | Manual PLL calculation | CubeMX generates | ✅ Hybrid |
+| Register Definitions | Copy from PDF | Use stm32h573xx.h | ✅ Hybrid |
+| Error Risk | High (typos, wrong addresses) | Low (ST-verified) | ✅ Hybrid |
+| Development Speed | Slow (research each register) | Fast (examples available) | ✅ Hybrid |
+| Flexibility | Full control | Full control + correct defaults | ✅ Hybrid |
+| Portability | Tied to our code | Easy to port (ST abstraction) | ✅ Hybrid |
+
+**Decision:** Use ST's code where it makes sense, wrap it in our API for consistency.
+
+### What We Keep Custom
+
+- ✅ **5-layer architecture** - Our design philosophy
+- ✅ **Rust validation** - Our safety-critical functions
+- ✅ **Build system** - Our Makefile (not HAL ecosystem)
+- ✅ **API design** - Our function signatures and namespaces
+- ✅ **CFPGA FIFO** - Our device-specific code
+
+### What We Adopt from ST
+
+- ✅ **Register definitions** - `stm32h573xx.h` (correct by design)
+- ✅ **Clock configuration** - CubeMX-generated (eliminates calculation errors)
+- ✅ **Examples as reference** - Verify our implementations match ST's approach
+
+---
+
+## Troubleshooting Guide
+
+### If ARM build fails with "arm-none-eabi-gcc: command not found"
+- ✅ Install ARM GCC toolchain (Priority 1)
+- ✅ Add to PATH
+- ✅ Restart terminal/IDE
+
+### If Rust ARM build fails
+- ✅ Verify target installed: `rustup target list --installed`
+- ✅ Should see: `thumbv8m.main-none-eabihf`
+- ✅ Check `.cargo/config.toml` has ARM target settings
+
+### If linker fails with "undefined reference to _estack"
+- ✅ Verify `stm32h573.ld` is in project root
+- ✅ Check Makefile has `-T stm32h573.ld` in LDFLAGS
+
+### If binary is too large (>2MB)
+- ✅ Check optimization: Should be `-O2` or `-Os`
+- ✅ Use `arm-none-eabi-size` to see section sizes
+- ✅ Verify `--gc-sections` removes unused code
+
+---
+
+## Next Session Start Checklist
+
+Before coding, verify:
+
+- [ ] ARM GCC installed: `arm-none-eabi-gcc --version` works
+- [ ] Rust ARM target: `rustup target list | grep thumbv8m`
+- [ ] STM32CubeMX installed and launches
+- [ ] ST CMSIS headers exist: `STM32CubeH5/Drivers/CMSIS/`
+- [ ] Current Windows build still works: `make clean && make`
+
+---
+
+## Estimated Timeline
+
+| Task | Estimated Time | Priority |
+|------|----------------|----------|
+| Install ARM GCC | 15 min | P1 |
+| Run STM32CubeMX | 30 min | P1 |
+| Create system_init.cpp | 45 min | P1 |
+| Update Makefile | 30 min | P1 |
+| Update platform layer | 20 min | P2 |
+| First ARM build attempt | 20 min | P2 |
+| Debug build issues | 30 min | P2 |
+| **Total** | **~3 hours** | |
+
+---
+
+## References
+
+- **Migration Plan:** `Documentation/STM32_MIGRATION_PLAN.md`
+- **Design Log:** `Documentation/DesignLog.md`
+- **STM32CubeH5 Manual:** `STM32CubeH5/Documentations/UM3065.pdf`
+- **STM32H573 Datasheet:** https://www.st.com/resource/en/datasheet/stm32h573ii.pdf
+- **ARM GCC Download:** https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads
+- **STM32CubeMX:** https://www.st.com/en/development-tools/stm32cubemx.html
+
+---
+
+*Last Updated: October 30, 2025*
+*Ready for Phase 1: System Initialization with Hybrid Approach*

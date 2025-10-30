@@ -188,30 +188,4 @@ print-vars:
 	@echo CXX_SOURCE: $(CXX_SOURCE)
 	@echo RUST_LIB: $(RUST_LIB)
 
-# ============================================================================
-# Build Dependency Notes
-# ============================================================================
-#
-# CRITICAL BUILD ORDER (Phase 0+):
-#
-# 1. cargo build --release (Rust)
-#    └─> Generates: lib.rs.h, lib.rs.cc, libcrusty.a
-#
-# 2. g++ -c lib.rs.cc
-#    └─> Compiles CXX-generated C++ code
-#    └─> Outputs: build/cxxbridge.o
-#
-# 3. g++ -c src/*.cpp -I target/cxxbridge/...
-#    └─> Compiles C++ code (includes CXX headers)
-#    └─> Outputs: build/*.o
-#
-# 4. g++ *.o -lcrusty
-#    └─> Links everything together
-#    └─> Outputs: build/crusty_firmware.exe
-#
-# WHY THIS ORDER:
-# - C++ code #includes "crusty/src/lib.rs.h"
-# - This header does NOT exist until Rust builds
-# - Therefore: Rust MUST complete before C++ compilation
-#
-# ============================================================================
+

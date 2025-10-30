@@ -50,3 +50,4 @@ nul
 .gitignore
 Documentation/PHASE0_READY_FOR_TESTING.md
 Documentation/SESSION_SUMMARY.md
+STM32CubeH5/*
