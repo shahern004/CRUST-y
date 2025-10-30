@@ -29,18 +29,38 @@ _estack = ORIGIN(RAM) + LENGTH(RAM);
 
 SECTIONS
 {
-    /* Vector table and code in Flash */
-    .text :
+    /* Vector table in Flash (must be first) */
+    .isr_vector :
     {
         . = ALIGN(4);
         KEEP(*(.isr_vector))    /* Vector table must be first */
         . = ALIGN(4);
+    } > FLASH
+
+    /* Program code in Flash */
+    .text :
+    {
+        . = ALIGN(4);
         *(.text)                /* Program code */
         *(.text*)
-        *(.rodata)              /* Read-only data */
-        *(.rodata*)
+        *(.glue_7)              /* ARM to Thumb interworking */
+        *(.glue_7t)             /* Thumb to ARM interworking */
+        *(.eh_frame)            /* Exception handling frames */
+
+        KEEP (*(.init))         /* C++ global constructors */
+        KEEP (*(.fini))         /* C++ global destructors */
+
         . = ALIGN(4);
-        _etext = .;             /* End of code/rodata */
+        _etext = .;             /* End of code */
+    } > FLASH
+
+    /* Read-only data in Flash (separate section for clarity) */
+    .rodata :
+    {
+        . = ALIGN(4);
+        *(.rodata)              /* Read-only data */
+        *(.rodata*)             /* Read-only data (wildcard) */
+        . = ALIGN(4);
     } > FLASH
 
     /* ARM exception unwinding info (C++ exceptions, if used) */

@@ -48,6 +48,7 @@ OBJS := $(BUILD_DIR)/main.o \
         $(BUILD_DIR)/uart.o \
         $(BUILD_DIR)/logging.o \
         $(BUILD_DIR)/control.o \
+        $(BUILD_DIR)/system_stm32h5xx.o \
         $(BUILD_DIR)/cxxbridge.o
 
 # ============================================================================
@@ -155,6 +156,11 @@ $(BUILD_DIR)/logging.o: $(SRC_DIR)/spinterfaces/logging.cpp
 $(BUILD_DIR)/control.o: $(SRC_DIR)/components/control.cpp $(CXX_HEADER)
 	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
 	@echo Compiling control.cpp...
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/system_stm32h5xx.o: $(SRC_DIR)/platform/system_stm32h5xx.c
+	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
+	@echo Compiling system_stm32h5xx.c...
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Clean build artifacts

@@ -39,7 +39,7 @@ This approach **eliminates low-level errors** (clock misconfiguration, register 
 
 ### STM32 Migration Preparation ✅ INFRASTRUCTURE READY
 
-**Completed This Session:**
+**Completed Previous Session:**
 - ✅ Rust ARM target installed (`thumbv8m.main-none-eabihf`)
 - ✅ Cargo configured for ARM Cortex-M33
 - ✅ Linker script created (`stm32h573.ld`)
@@ -47,9 +47,20 @@ This approach **eliminates low-level errors** (clock misconfiguration, register 
 - ✅ STM32CubeH5 package available locally
 - ✅ Migration plan documented
 
-**New Files:**
-- `stm32h573.ld` - Memory layout for STM32H573
-- `startup.s` - Reset handler + 116 interrupt vectors
+**Completed This Session (October 30, 2025):**
+- ✅ **Linker script updated** - ST-compatible sections added (.rodata, .init/.fini, interworking)
+- ✅ **Startup file updated** - Now calls `SystemInit()` before main (ST-compatible boot sequence)
+- ✅ **SystemInit infrastructure created** - `system_stm32h5xx.c/.h` stub ready for CubeMX code
+- ✅ **FPU configuration** - Hardware floating point enabled in SystemInit
+- ✅ **Makefile updated** - Builds new system initialization file
+- ✅ **Windows build verified** - All changes compile successfully
+
+**Files Created/Updated:**
+- `stm32h573.ld` - **UPDATED** with ST-compatible sections, kept superior heap/stack config
+- `startup.s` - **UPDATED** to call SystemInit(), FPU hardware floating point enabled
+- `src/platform/system_stm32h5xx.c` - **NEW** ST-compatible system init stub (ready for CubeMX)
+- `include/crusty/platform/system_stm32h5xx.h` - **NEW** SystemInit() declarations
+- `Makefile` - **UPDATED** to compile system_stm32h5xx.c
 - `rust/.cargo/config.toml` - ARM target configuration
 - `Documentation/STM32_MIGRATION_PLAN.md` - Comprehensive migration guide
 
@@ -210,90 +221,54 @@ When we run STM32CubeMX in the next session:
 
 ---
 
-### PRIORITY 3: Create system_init.cpp ⏰ 45 min
+### PRIORITY 3: Populate system_stm32h5xx.c with CubeMX Code ⏰ 45 min
 
-**Goal:** Adapt CubeMX-generated clock configuration to our C++ architecture
+**Status:** ✅ **File structure already created** (system_stm32h5xx.c/.h exist with FPU init)
 
-**Create:** `src/platform/system_init.cpp`
+**Goal:** Fill `SystemInit()` function with CubeMX-generated clock configuration
 
-**Template Structure:**
-```cpp
-#include "crusty/platform/system_init.h"
-#include "stm32h573xx.h"  // ST's register definitions
+**File to Update:** `src/platform/system_stm32h5xx.c` (already exists as stub)
 
-namespace crusty {
-namespace platform {
+**What to Add (from CubeMX output):**
 
-// Private functions (adapted from CubeMX system_stm32h5xx.c)
-namespace {
-    void configurePLL() {
-        // Enable HSI
-        RCC->CR |= RCC_CR_HSION;
-        while ((RCC->CR & RCC_CR_HSIRDY) == 0);  // Wait for HSI ready
+Open `CubeMX_Generated/Core/Src/system_stm32h5xx.c` and copy the clock configuration code from `SystemInit()` function into our existing `src/platform/system_stm32h5xx.c` file.
 
-        // Configure PLL (250 MHz from HSI 64 MHz)
-        // [Adapted from CubeMX generated code]
-        RCC->PLLCFGR = ...;
-        // Enable PLL
-        RCC->CR |= RCC_CR_PLLON;
-        while ((RCC->CR & RCC_CR_PLLRDY) == 0);  // Wait for PLL lock
-    }
+**Specifically, copy:**
+1. Flash wait state configuration
+2. PLL configuration registers (RCC->PLLCFGR, RCC->PLL1DIVR, etc.)
+3. Power regulator voltage scaling settings
+4. Clock source switching logic
+5. SystemCoreClock update calculation
 
-    void configureFlash() {
-        // Set flash wait states for 250 MHz
-        FLASH->ACR = ...;  // From CubeMX
-    }
+**Current File Structure (already exists):**
+```c
+// src/platform/system_stm32h5xx.c
+void SystemInit(void)
+{
+    /* FPU settings (already done) */
+    #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
+        SCB->CPACR |= ((3UL << 10*2)|(3UL << 11*2));
+    #endif
 
-    void switchToPLL() {
-        // Switch system clock to PLL
-        RCC->CFGR |= RCC_CFGR_SW_PLL;
-        while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL);
-    }
+    /* TODO Phase 1: Add CubeMX clock config here */
+    // 1. Configure Flash wait states
+    // 2. Configure PLL (HSI → 250 MHz)
+    // 3. Enable caches
+    // 4. Configure voltage scaling
+    // 5. Switch to PLL
 
-    void enablePeripheralClocks() {
-        // Enable GPIO clocks
-        RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN | RCC_AHB2ENR_GPIOBEN;
-        // Enable UART4 clock
-        RCC->APB1ENR |= RCC_APB1ENR_UART4EN;
-    }
+    SystemCoreClock = 64000000;  // Update to 250000000 after config
 }
-
-// Public API
-void systemInit() {
-    configureFlash();
-    configurePLL();
-    switchToPLL();
-    enablePeripheralClocks();
-}
-
-uint32_t getSystemClock() {
-    return 250000000;  // 250 MHz
-}
-
-} // namespace platform
-} // namespace crusty
 ```
 
-**Header:** `include/crusty/platform/system_init.h`
-```cpp
-#ifndef CRUSTY_PLATFORM_SYSTEM_INIT_H
-#define CRUSTY_PLATFORM_SYSTEM_INIT_H
+**Steps:**
+1. Open `CubeMX_Generated/Core/Src/system_stm32h5xx.c`
+2. Copy clock configuration code (between FPU and end)
+3. Paste into our `src/platform/system_stm32h5xx.c` at the TODO marker
+4. Update `SystemCoreClock = 250000000;` at the end
+5. Include ST CMSIS header: `#include "stm32h573xx.h"` at top
 
-#include <cstdint>
-
-namespace crusty {
-namespace platform {
-
-void systemInit();
-uint32_t getSystemClock();
-
-} // namespace platform
-} // namespace crusty
-
-#endif
-```
-
-**Integration Point:** Call from `main.cpp` before any peripheral initialization
+**Note:** Our file is C (not C++), so no namespaces needed. This matches ST's convention.
 
 ---
 

@@ -206,6 +206,10 @@ zero_bss_check:
     cmp r0, r1              /* Compare with end address */
     bcc zero_bss_loop       /* Loop if not done */
 
+    /* Call system initialization (clock setup, FPU enable, caches) */
+    /* This function will be implemented in system_stm32h5xx.c */
+    bl SystemInit
+
     /* Call C++ constructors for global objects */
     bl __libc_init_array
 
