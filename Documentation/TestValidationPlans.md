@@ -2,57 +2,61 @@
 
 This document contains manual test procedures for each development phase. Execute these tests after implementation is complete for each phase.
 
+**Current Status**: Phase 0 ✅ COMPLETE | Phase 1 🔄 IN PROGRESS | Phase 2 📋 PLANNED
+
 ---
 
-## Phase 0: CXX Bridge Foundation - Test Plan
+## Phase 0: CXX Bridge Foundation - Test Plan ✅ COMPLETE
 
-### Test 0.1: Build System Verification
+### Test 0.1: Build System Verification ✅ COMPLETE
 
 **Objective**: Verify Rust build system generates CXX headers and compiles successfully
 
 **Prerequisites**:
-- `Rust/build.rs` created
-- `Rust/Cargo.toml` updated with dependencies
-- `Rust/src/lib.rs` contains CXX bridge definition
+- `rust/build.rs` created
+- `rust/Cargo.toml` updated with dependencies
+- `rust/src/lib.rs` contains CXX bridge definition
 
 **Test Steps**:
 1. Clean all build artifacts:
    ```bash
-   mingw32-make clean
+   make clean
    ```
 
 2. Build Rust code only:
    ```bash
-   mingw32-make rust
+   make rust
    ```
 
 3. Verify Rust build succeeds with no errors
 
 4. Check generated CXX header exists:
    ```bash
-   dir Rust\target\cxxbridge\crusty\src\lib.rs.h
+   dir rust\target\x86_64-pc-windows-gnu\cxxbridge\crusty-firmware\src\lib.rs.h
    ```
 
 5. Check generated CXX implementation exists:
    ```bash
-   dir Rust\target\cxxbridge\crusty\src\lib.rs.cc
+   dir rust\target\x86_64-pc-windows-gnu\cxxbridge\crusty-firmware\src\lib.rs.cc
    ```
 
 6. Check Rust static library exists:
    ```bash
-   dir Rust\target\release\libcrusty.a
+   dir rust\target\x86_64-pc-windows-gnu\release\libcrusty.a
    ```
 
 **Expected Results**:
 - ✅ `cargo build --release` completes successfully
-- ✅ `lib.rs.h` file exists in `Rust/target/cxxbridge/crusty/src/`
-- ✅ `lib.rs.cc` file exists in `Rust/target/cxxbridge/crusty/src/`
-- ✅ `libcrusty.a` file exists in `Rust/target/release/`
+- ✅ `lib.rs.h` file exists in target cxxbridge directory
+- ✅ `lib.rs.cc` file exists in target cxxbridge directory
+- ✅ `libcrusty.a` file exists in `rust/target/x86_64-pc-windows-gnu/release/`
 - ✅ No compilation errors or warnings
 
 **Pass/Fail Criteria**:
-- **PASS**: All files generated, no errors
+- **PASS**: All files generated, no errors ✅ VERIFIED
 - **FAIL**: Missing files, compilation errors, or CXX generation failures
+
+**Actual Result**: PASS - Rust builds successfully, CXX generates FFI bindings, library compiles
 
 ---
 
@@ -210,11 +214,227 @@ Decision: [ APPROVED TO PROCEED TO PHASE 1 / REQUIRES FIXES ]
 
 ---
 
-## Phase 1: CFPGA FIFO Device - Test Plan
+## Phase 1: System Initialization - Test Plan 🔄 IN PROGRESS
 
-**Execute after Phase 0 approval and Phase 1 implementation**
+**Execute after ARM toolchain installation and system initialization implementation**
 
-### Test 1.1: FIFO Initialization
+### Test 1.1: ARM GCC Toolchain Installation
+
+**Objective**: Verify ARM cross-compiler is installed and accessible
+
+**Test Steps**:
+1. Check ARM GCC version:
+   ```bash
+   arm-none-eabi-gcc --version
+   ```
+
+2. Check ARM G++ version:
+   ```bash
+   arm-none-eabi-g++ --version
+   ```
+
+3. Check binutils:
+   ```bash
+   arm-none-eabi-size --version
+   arm-none-eabi-objcopy --version
+   ```
+
+**Expected Results**:
+- ✅ ARM GCC version 13.2 or later
+- ✅ All toolchain utilities accessible
+- ✅ No "command not found" errors
+
+**Pass/Fail Criteria**:
+- **PASS**: Toolchain installed and functional
+- **FAIL**: Missing tools or version mismatch
+
+---
+
+### Test 1.2: Dual-Target Makefile - Windows Build
+
+**Objective**: Verify Windows development build still works after Makefile updates
+
+**Test Steps**:
+1. Clean and build for Windows target:
+   ```bash
+   make clean
+   make TARGET=windows
+   ```
+
+2. Run executable:
+   ```bash
+   make run
+   ```
+
+3. Verify output shows initialization messages
+
+**Expected Results**:
+- ✅ Windows build compiles successfully
+- ✅ Executable runs without crashes
+- ✅ Conditional compilation uses Windows stubs
+- ✅ Console output visible
+
+**Pass/Fail Criteria**:
+- **PASS**: Windows build works as before
+- **FAIL**: Compilation errors or runtime issues
+
+---
+
+### Test 1.3: ARM Target Build Compilation
+
+**Objective**: Verify ARM cross-compilation succeeds
+
+**Test Steps**:
+1. Build for ARM target:
+   ```bash
+   make clean
+   make TARGET=arm
+   ```
+
+2. Check for compilation errors
+
+3. Verify binary created:
+   ```bash
+   dir build\crusty_firmware.elf
+   ```
+
+4. Check binary size:
+   ```bash
+   arm-none-eabi-size build\crusty_firmware.elf
+   ```
+
+**Expected Results**:
+- ✅ ARM build compiles without errors
+- ✅ `crusty_firmware.elf` created
+- ✅ Text section < 2MB (Flash constraint)
+- ✅ Data + BSS < 640KB (RAM constraint)
+- ✅ Rust library links correctly
+
+**Pass/Fail Criteria**:
+- **PASS**: ARM binary builds and fits in memory constraints
+- **FAIL**: Compilation errors or size exceeds constraints
+
+---
+
+### Test 1.4: System Initialization Code Verification
+
+**Objective**: Verify system_stm32h5xx.c contains clock configuration
+
+**Test Steps**:
+1. Review [system_stm32h5xx.c](../src/platform/system_stm32h5xx.c):
+   - FPU initialization present
+   - Clock configuration from CubeMX integrated
+   - SystemCoreClock = 250000000 (after PLL config)
+
+2. Verify SystemInit() is called from [startup.s](../startup.s)
+
+3. Check that linker script sections are correct
+
+**Expected Results**:
+- ✅ SystemInit() calls FPU setup
+- ✅ SystemInit() configures PLL for 250 MHz
+- ✅ Startup code calls SystemInit() before main()
+- ✅ Linker script compatible with ST memory layout
+
+**Pass/Fail Criteria**:
+- **PASS**: System initialization code complete and correct
+- **FAIL**: Missing initialization or incorrect configuration
+
+---
+
+### Test 1.5: Hardware Flashing (Requires STM32H573I-DK)
+
+**Objective**: Flash firmware to actual hardware and verify boot
+
+**Prerequisites**:
+- STM32H573I-DK board connected via ST-Link
+- STM32CubeProgrammer installed
+
+**Test Steps**:
+1. Generate binary file:
+   ```bash
+   arm-none-eabi-objcopy -O binary build\crusty_firmware.elf build\crusty_firmware.bin
+   ```
+
+2. Flash to board using STM32CubeProgrammer:
+   ```bash
+   STM32_Programmer_CLI -c port=SWD -w build\crusty_firmware.bin 0x08000000 -rst
+   ```
+
+3. Connect UART4 serial console (115200 baud)
+
+4. Reset board and observe output
+
+**Expected Results**:
+- ✅ Firmware flashes successfully
+- ✅ Board resets and runs
+- ✅ UART output visible (if implemented)
+- ✅ No hard faults or exceptions
+- ✅ LED activity (if GPIO implemented)
+
+**Pass/Fail Criteria**:
+- **PASS**: Firmware runs on hardware without crashes
+- **FAIL**: Flash errors, hard faults, or no activity
+
+---
+
+### Test 1.6: calculate_crusty_number() FFI Demonstration
+
+**Objective**: Verify Rust function callable from C++ (simple FFI test)
+
+**Test Steps**:
+1. In main.cpp, add call to Rust function:
+   ```cpp
+   uint32_t crusty_num = calculate_crusty_number();
+   logging::log("CRUSTy number: " + std::to_string(crusty_num));
+   ```
+
+2. Build and run (Windows or ARM)
+
+3. Verify output shows "42"
+
+**Expected Results**:
+- ✅ C++ successfully calls Rust function via CXX bridge
+- ✅ Return value is 42 (41 + 1)
+- ✅ No FFI errors or crashes
+- ✅ Demonstrates working C++/Rust integration
+
+**Pass/Fail Criteria**:
+- **PASS**: Rust function callable, returns correct value
+- **FAIL**: Linking errors or wrong value
+
+---
+
+### Phase 1 Test Summary Report Template
+
+```
+=== PHASE 1 TEST RESULTS ===
+Date: _____________
+Tester: ___________
+
+Test 1.1 - ARM GCC Toolchain Installation:   [ PASS / FAIL ]
+Test 1.2 - Windows Build Still Works:        [ PASS / FAIL ]
+Test 1.3 - ARM Target Build Compilation:     [ PASS / FAIL ]
+Test 1.4 - System Initialization Code:       [ PASS / FAIL ]
+Test 1.5 - Hardware Flashing (Optional):     [ PASS / FAIL / SKIPPED ]
+Test 1.6 - calculate_crusty_number() Demo:   [ PASS / FAIL ]
+
+Overall Phase 1 Status: [ PASS / FAIL ]
+
+Notes/Issues:
+_________________________________________________
+_________________________________________________
+
+Decision: [ APPROVED TO PROCEED TO PHASE 2 / REQUIRES FIXES ]
+```
+
+---
+
+## Phase 2: CFPGA FIFO Device - Test Plan 📋 PLANNED
+
+**Execute after Phase 1 approval and CFPGA FIFO implementation**
+
+### Test 2.1: FIFO Initialization
 
 **Objective**: Verify CFPGA FIFO device initializes correctly
 
@@ -243,7 +463,7 @@ Decision: [ APPROVED TO PROCEED TO PHASE 1 / REQUIRES FIXES ]
 
 ---
 
-### Test 1.2: FIFO Write Operations
+### Test 2.2: FIFO Write Operations
 
 **Objective**: Verify data can be written to FIFO correctly
 
@@ -271,7 +491,7 @@ Decision: [ APPROVED TO PROCEED TO PHASE 1 / REQUIRES FIXES ]
 
 ---
 
-### Test 1.3: FIFO Read Operations
+### Test 2.3: FIFO Read Operations
 
 **Objective**: Verify data can be read from FIFO correctly
 
@@ -298,7 +518,7 @@ Decision: [ APPROVED TO PROCEED TO PHASE 1 / REQUIRES FIXES ]
 
 ---
 
-### Test 1.4: FIFO Interrupt Trigger
+### Test 2.4: FIFO Interrupt Trigger
 
 **Objective**: Verify FIFO triggers interrupt when threshold reached
 
@@ -328,7 +548,7 @@ Decision: [ APPROVED TO PROCEED TO PHASE 1 / REQUIRES FIXES ]
 
 ---
 
-### Test 1.5: Circular Buffer Wraparound
+### Test 2.5: Circular Buffer Wraparound
 
 **Objective**: Verify FIFO handles wraparound correctly
 
@@ -350,7 +570,7 @@ Decision: [ APPROVED TO PROCEED TO PHASE 1 / REQUIRES FIXES ]
 
 ---
 
-### Test 1.6: FIFO Overflow Protection
+### Test 2.6: FIFO Overflow Protection
 
 **Objective**: Verify FIFO rejects writes when full
 
@@ -371,7 +591,7 @@ Decision: [ APPROVED TO PROCEED TO PHASE 1 / REQUIRES FIXES ]
 
 ---
 
-### Test 1.7: ControlMessage Structure Compatibility
+### Test 2.7: ControlMessage Structure Compatibility
 
 **Objective**: Verify FIFO can produce data in CXX-compatible ControlMessage format
 
@@ -401,37 +621,39 @@ Decision: [ APPROVED TO PROCEED TO PHASE 1 / REQUIRES FIXES ]
 
 ---
 
-### Phase 1 Test Summary Report Template
+### Phase 2 Test Summary Report Template
 
 ```
-=== PHASE 1 TEST RESULTS ===
+=== PHASE 2 TEST RESULTS ===
 Date: _____________
 Tester: ___________
 
-Test 1.1 - FIFO Initialization:              [ PASS / FAIL ]
-Test 1.2 - FIFO Write Operations:            [ PASS / FAIL ]
-Test 1.3 - FIFO Read Operations:             [ PASS / FAIL ]
-Test 1.4 - FIFO Interrupt Trigger:           [ PASS / FAIL ]
-Test 1.5 - Circular Buffer Wraparound:       [ PASS / FAIL ]
-Test 1.6 - FIFO Overflow Protection:         [ PASS / FAIL ]
-Test 1.7 - ControlMessage Compatibility:     [ PASS / FAIL ]
+Test 2.1 - FIFO Initialization:              [ PASS / FAIL ]
+Test 2.2 - FIFO Write Operations:            [ PASS / FAIL ]
+Test 2.3 - FIFO Read Operations:             [ PASS / FAIL ]
+Test 2.4 - FIFO Interrupt Trigger:           [ PASS / FAIL ]
+Test 2.5 - Circular Buffer Wraparound:       [ PASS / FAIL ]
+Test 2.6 - FIFO Overflow Protection:         [ PASS / FAIL ]
+Test 2.7 - ControlMessage Compatibility:     [ PASS / FAIL ]
 
-Overall Phase 1 Status: [ PASS / FAIL ]
+Overall Phase 2 Status: [ PASS / FAIL ]
 
 Notes/Issues:
 _________________________________________________
 _________________________________________________
 
-Decision: [ APPROVED TO PROCEED TO PHASE 2 / REQUIRES FIXES ]
+Decision: [ APPROVED TO PROCEED TO PHASE 3 / REQUIRES FIXES ]
 ```
 
 ---
 
-## Phase 2: Rust Safety Functions - Test Plan
+## Phase 3: Rust Validation Integration - Test Plan
 
-**Execute after Phase 0 approval and Phase 2 implementation**
+**Execute after Phase 2 approval - tests Rust validation with CFPGA FIFO**
 
-### Test 2.1: Rust Function Compilation
+**Note**: These tests were originally part of "Phase 2" but have been relabeled to Phase 3 for consistency with the new phase numbering (Phase 0: CXX Bridge ✅ COMPLETE, Phase 1: System Init 🔄 IN PROGRESS, Phase 2: CFPGA FIFO 📋 PLANNED, Phase 3: Rust Integration 📋 PLANNED)
+
+### Test 3.1: Rust Function Compilation
 
 **Objective**: Verify Rust validation functions compile without unsafe blocks
 
