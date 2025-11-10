@@ -65,6 +65,7 @@ static Status initDevices() {
  * @brief Initialize components (Layer 5)
  * @return Status OK if successful
  */
+
 static Status initComponents() {
     spinterfaces::Logging::logInfo("Initializing components...");
 
