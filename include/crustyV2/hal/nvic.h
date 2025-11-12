@@ -1,11 +1,11 @@
-#ifndef CRUSTY_HAL_NVIC_H
-#define CRUSTY_HAL_NVIC_H
+#ifndef crustyV2_HAL_NVIC_H
+#define crustyV2_HAL_NVIC_H
 
-#include "crusty/platform/stm32h573.h"
-#include "crusty/platform/types.h"
-#include "crusty/hal/mmio.h"
+#include "crustyV2/platform/stm32h573.h"
+#include "crustyV2/platform/types.h"
+#include "crustyV2/hal/mmio.h"
 
-namespace crusty {
+namespace crustyV2 {
 namespace hal {
 
 /**
@@ -73,6 +73,6 @@ public:
 };
 
 } // namespace hal
-} // namespace crusty
+} // namespace crustyV2
 
-#endif // CRUSTY_HAL_NVIC_H
+#endif // crustyV2_HAL_NVIC_H

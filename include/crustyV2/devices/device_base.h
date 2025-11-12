@@ -1,9 +1,9 @@
-#ifndef CRUSTY_DEVICES_DEVICE_BASE_H
-#define CRUSTY_DEVICES_DEVICE_BASE_H
+#ifndef crustyV2_DEVICES_DEVICE_BASE_H
+#define crustyV2_DEVICES_DEVICE_BASE_H
 
-#include "crusty/platform/types.h"
+#include "crustyV2/platform/types.h"
 
-namespace crusty {
+namespace crustyV2 {
 namespace devices {
 
 /**
@@ -36,6 +36,6 @@ public:
 };
 
 } // namespace devices
-} // namespace crusty
+} // namespace crustyV2
 
-#endif // CRUSTY_DEVICES_DEVICE_BASE_H
+#endif // crustyV2_DEVICES_DEVICE_BASE_H

@@ -5,8 +5,8 @@
  * Declarations for system initialization functions called by startup code.
  */
 
-#ifndef CRUSTY_PLATFORM_SYSTEM_STM32H5XX_H
-#define CRUSTY_PLATFORM_SYSTEM_STM32H5XX_H
+#ifndef crustyV2_PLATFORM_SYSTEM_STM32H5XX_H
+#define crustyV2_PLATFORM_SYSTEM_STM32H5XX_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,4 +47,4 @@ void SystemCoreClockUpdate(void);
 }
 #endif
 
-#endif /* CRUSTY_PLATFORM_SYSTEM_STM32H5XX_H */
+#endif /* crustyV2_PLATFORM_SYSTEM_STM32H5XX_H */

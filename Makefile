@@ -1,48 +1,52 @@
 # CRUST-y Makefile for hybrid C++/Rust firmware
-# Windows-native build using MinGW (for development/testing)
-# Note: For actual STM32 deployment, use ARM cross-compiler
+# STM32H573 (Cortex-M33) - ARM cross-compilation
 
 # ============================================================================
 # Build Configuration
 # ============================================================================
 
-TARGET_EXEC := crusty_firmware.exe
-BUILD_DIR := build
-SRC_DIR := src
-INC_DIR := include
-RUST_DIR := C:\GithubProjects\CRUST-y\rust
+TARGET_EXEC := crustyV2_firmware.elf
+TARGET_BIN  := crustyV2_firmware.bin
+TARGET_HEX  := crustyV2_firmware.hex
+BUILD_DIR   := C:\GithubProjects\CRUST-y\build
+SRC_DIR     := C:\GithubProjects\CRUST-y\src
+INC_DIR     := C:\GithubProjects\CRUST-y\include
+RUST_DIR    := C:\GithubProjects\CRUST-y\rust
+LINKER_SCRIPT := stm32h573.ld
+STARTUP_FILE  := startup.s
 
 # ============================================================================
-# Compiler and Tools (Windows MinGW)
+# Toolchain (ARM Embedded GCC)
 # ============================================================================
 
-CXX := g++
-CARGO := cargo
+PREFIX := arm-none-eabi-
+CC     := $(PREFIX)gcc
+CXX    := $(PREFIX)g++
+AS     := $(PREFIX)as
+LD     := $(PREFIX)gcc
+OBJCOPY := $(PREFIX)objcopy
+SIZE    := $(PREFIX)size
+CARGO   := cargo
+
+# Rust target for Cortex-M33
+RUST_TARGET := thumbv8m.main-none-eabihf
 
 # ============================================================================
-# CXX Bridge Generated Files (Phase 0+)
+# CXX Bridge Generated Files
 # ============================================================================
 
-# CXX generates these files during Rust build
-# Note: Uses package name (crusty-firmware) not library name (crusty)
-CXX_BRIDGE_DIR := $(RUST_DIR)/target/x86_64-pc-windows-gnu/cxxbridge/crusty-firmware/src
-CXX_HEADER := $(CXX_BRIDGE_DIR)/lib.rs.h
-CXX_SOURCE := $(CXX_BRIDGE_DIR)/lib.rs.cc
+CXX_BRIDGE_DIR := $(RUST_DIR)/target/$(RUST_TARGET)/cxxbridge/crustyV2-firmware/src
+CXX_HEADER     := $(CXX_BRIDGE_DIR)/lib.rs.h
+CXX_SOURCE     := $(CXX_BRIDGE_DIR)/lib.rs.cc
 CXX_CXX_HEADER := $(RUST_DIR)/target/cxxbridge/rust/cxx.h
-# Using MinGW (GNU) target for Rust to match C++ toolchain
-# Generates libcrusty.a instead of crusty.lib (MSVC)
-RUST_LIB := $(RUST_DIR)/target/x86_64-pc-windows-gnu/release/libcrusty.a
+RUST_LIB       := $(RUST_DIR)/target/$(RUST_TARGET)/release/libcrustyV2.a
 
 # ============================================================================
-# C++ Source Files (Layered Architecture)
+# C++ Source Files
 # ============================================================================
 
-# All C++ source files in src/ subdirectories
-CPP_SRCS := $(shell dir /s /b $(SRC_DIR)\*.cpp 2>nul)
-
-# Generate object file paths
-# Note: This is simplified for Windows - each .cpp becomes a .o in build/
-OBJS := $(BUILD_DIR)/main.o \
+OBJS := $(BUILD_DIR)/startup.o \
+        $(BUILD_DIR)/main.o \
         $(BUILD_DIR)/nvic.o \
         $(BUILD_DIR)/gpio.o \
         $(BUILD_DIR)/uart.o \
@@ -52,146 +56,195 @@ OBJS := $(BUILD_DIR)/main.o \
         $(BUILD_DIR)/cxxbridge.o
 
 # ============================================================================
-# Compiler Flags
+# Compiler Flags for Cortex-M33 with FPU
 # ============================================================================
 
-# Include paths
-# CRITICAL: Include CXX-generated headers for Phase 0+
+# CPU-specific flags
+CPU_FLAGS := -mcpu=cortex-m33 \
+             -mthumb \
+             -mfpu=fpv5-sp-d16 \
+             -mfloat-abi=hard
+
+# Include paths (CRITICAL: Include CXX-generated headers)
 INCLUDES := -I$(INC_DIR) \
             -I$(CXX_BRIDGE_DIR) \
             -I$(RUST_DIR)/target/cxxbridge
 
 # C++ compiler flags
-CXXFLAGS := $(INCLUDES) \
+CXXFLAGS := $(CPU_FLAGS) \
+            $(INCLUDES) \
             -std=c++17 \
             -O2 \
-            -g \
+            -g3 \
             -Wall \
             -Wextra \
-            -DWINDOWS_BUILD
+            -fno-exceptions \
+            -fno-rtti \
+            -ffunction-sections \
+            -fdata-sections \
+            -DSTM32H573xx \
+            -DUSE_HAL_DRIVER
+
+# Assembly flags
+ASFLAGS := $(CPU_FLAGS) \
+           -g3
 
 # Linker flags
-# CRITICAL: Link Rust static library and Windows socket library
-# Using MinGW (GNU) target for Rust to match C++ toolchain
-LDFLAGS := -L$(RUST_DIR)/target/x86_64-pc-windows-gnu/release \
-           -lcrusty \
-           -lws2_32 \
-           -luserenv \
-           -lbcrypt \
-           -lntdll
+LDFLAGS := $(CPU_FLAGS) \
+           -T$(LINKER_SCRIPT) \
+           -Wl,--gc-sections \
+           -Wl,-Map=$(BUILD_DIR)/$(basename $(TARGET_EXEC)).map \
+           -Wl,--print-memory-usage \
+           --specs=nano.specs \
+           --specs=nosys.specs
+
+# Libraries to link (Rust + system)
+LIBS := -L$(RUST_DIR)/target/$(RUST_TARGET)/release \
+        -lcrustyV2 \
+        -lm \
+        -lc
 
 # ============================================================================
 # Build Rules
 # ============================================================================
 
-.PHONY: all clean rust cpp run print-vars
+.PHONY: all clean rust cpp flash size hex bin print-vars
 
-# Default target: Build everything (Phase 0+)
-# CRITICAL ORDER: Rust MUST build first to generate CXX headers
+# Default target: Build everything
 all: rust cpp
 
-# Build C++ code only (for Step 1 - before CXX integration)
-# Use 'make cpp' for legacy C++-only builds
+# Build C++ firmware (produces .elf)
 cpp: $(BUILD_DIR)/$(TARGET_EXEC)
 
-# Build Rust library with CXX code generation (Phase 0+)
-# This MUST complete before C++ compilation
+# Generate .bin and .hex files for flashing
+bin: $(BUILD_DIR)/$(TARGET_BIN)
+hex: $(BUILD_DIR)/$(TARGET_HEX)
+
+# Build Rust library with CXX code generation
 rust:
-	@echo ========================================
-	@echo Building Rust library with CXX bridge...
-	@echo ========================================
-	cd $(RUST_DIR) && $(CARGO) build --release
+	@echo "========================================"
+	@echo "Building Rust library for $(RUST_TARGET)..."
+	@echo "========================================"
+	cd $(RUST_DIR) && $(CARGO) build --target $(RUST_TARGET) --release
 	@echo ""
-	@echo CXX-generated files:
-	@if exist $(CXX_HEADER) (echo [OK] $(CXX_HEADER)) else (echo [MISSING] $(CXX_HEADER))
-	@if exist $(CXX_SOURCE) (echo [OK] $(CXX_SOURCE)) else (echo [MISSING] $(CXX_SOURCE))
-	@if exist $(RUST_LIB) (echo [OK] $(RUST_LIB)) else (echo [MISSING] $(RUST_LIB))
-	@echo ========================================
-	@echo Rust build complete
-	@echo ========================================
+	@echo "CXX-generated files:"
+	@if [ -f $(CXX_HEADER) ]; then echo "[OK] $(CXX_HEADER)"; else echo "[MISSING] $(CXX_HEADER)"; fi
+	@if [ -f $(CXX_SOURCE) ]; then echo "[OK] $(CXX_SOURCE)"; else echo "[MISSING] $(CXX_SOURCE)"; fi
+	@if [ -f $(RUST_LIB) ]; then echo "[OK] $(RUST_LIB)"; else echo "[MISSING] $(RUST_LIB)"; fi
+	@echo "========================================"
+	@echo "Rust build complete"
+	@echo "========================================"
 
 # Link C++ objects with Rust static library
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS) $(RUST_LIB)
-	@echo ========================================
-	@echo Linking $(TARGET_EXEC)...
-	@echo ========================================
-	$(CXX) $(OBJS) -o $@ $(LDFLAGS)
-	@echo ========================================
-	@echo Build complete!
-	@echo ========================================
+	@echo "========================================"
+	@echo "Linking $(TARGET_EXEC)..."
+	@echo "========================================"
+	$(LD) $(OBJS) $(LDFLAGS) $(LIBS) -o $@
+	@echo ""
+	$(SIZE) $@
+	@echo "========================================"
+	@echo "Build complete!"
+	@echo "========================================"
 
-# Compile CXX-generated C++ code (Phase 0+)
-# This file is auto-generated by Rust cargo build
+# Convert ELF to binary (for flashing)
+$(BUILD_DIR)/$(TARGET_BIN): $(BUILD_DIR)/$(TARGET_EXEC)
+	@echo "Generating binary file..."
+	$(OBJCOPY) -O binary $< $@
+	@echo "Binary: $@"
+
+# Convert ELF to Intel HEX (for flashing)
+$(BUILD_DIR)/$(TARGET_HEX): $(BUILD_DIR)/$(TARGET_EXEC)
+	@echo "Generating hex file..."
+	$(OBJCOPY) -O ihex $< $@
+	@echo "Hex: $@"
+
+# ============================================================================
+# Compilation Rules
+# ============================================================================
+
+# Assemble startup code
+$(BUILD_DIR)/startup.o: $(STARTUP_FILE)
+	@mkdir -p $(BUILD_DIR)
+	@echo "Assembling $(STARTUP_FILE)..."
+	$(AS) $(ASFLAGS) $< -o $@
+
+# Compile CXX-generated C++ code (auto-generated by Rust)
 $(BUILD_DIR)/cxxbridge.o: $(CXX_SOURCE)
-	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
-	@echo Compiling CXX bridge (lib.rs.cc)...
+	@mkdir -p $(BUILD_DIR)
+	@echo "Compiling CXX bridge (lib.rs.cc)..."
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Compile individual C++ source files
+# Compile C++ source files
 $(BUILD_DIR)/main.o: $(SRC_DIR)/main.cpp $(CXX_HEADER)
-	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
-	@echo Compiling main.cpp...
+	@mkdir -p $(BUILD_DIR)
+	@echo "Compiling main.cpp..."
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/nvic.o: $(SRC_DIR)/hal/nvic.cpp
-	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
-	@echo Compiling nvic.cpp...
+	@mkdir -p $(BUILD_DIR)
+	@echo "Compiling nvic.cpp..."
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/gpio.o: $(SRC_DIR)/hal/gpio.cpp
-	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
-	@echo Compiling gpio.cpp...
+	@mkdir -p $(BUILD_DIR)
+	@echo "Compiling gpio.cpp..."
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/uart.o: $(SRC_DIR)/hal/uart.cpp
-	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
-	@echo Compiling uart.cpp...
+	@mkdir -p $(BUILD_DIR)
+	@echo "Compiling uart.cpp..."
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/logging.o: $(SRC_DIR)/spinterfaces/logging.cpp
-	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
-	@echo Compiling logging.cpp...
+	@mkdir -p $(BUILD_DIR)
+	@echo "Compiling logging.cpp..."
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/control.o: $(SRC_DIR)/components/control.cpp $(CXX_HEADER)
-	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
-	@echo Compiling control.cpp...
+	@mkdir -p $(BUILD_DIR)
+	@echo "Compiling control.cpp..."
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/system_stm32h5xx.o: $(SRC_DIR)/platform/system_stm32h5xx.c
-	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
-	@echo Compiling system_stm32h5xx.c...
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	@mkdir -p $(BUILD_DIR)
+	@echo "Compiling system_stm32h5xx.c..."
+	$(CC) $(CXXFLAGS) -c $< -o $@
+
+# ============================================================================
+# Utility Targets
+# ============================================================================
+
+# Display binary size information
+size: $(BUILD_DIR)/$(TARGET_EXEC)
+	@echo "========================================"
+	@echo "Memory Usage:"
+	@echo "========================================"
+	$(SIZE) $<
 
 # Clean build artifacts
 clean:
-	@echo ========================================
-	@echo Cleaning build artifacts...
-	@echo ========================================
-	@if exist $(BUILD_DIR) rmdir /s /q $(BUILD_DIR)
-	@if exist $(RUST_DIR)\target (cd $(RUST_DIR) && $(CARGO) clean)
-	@echo ========================================
-	@echo Clean complete
-	@echo ========================================
+	@echo "========================================"
+	@echo "Cleaning build artifacts..."
+	@echo "========================================"
+	rm -rf $(BUILD_DIR)
+	cd $(RUST_DIR) && $(CARGO) clean
+	@echo "========================================"
+	@echo "Clean complete"
+	@echo "========================================"
 
-# Run the built executable
-run: $(BUILD_DIR)/$(TARGET_EXEC)
-	@echo ========================================
-	@echo Running $(TARGET_EXEC)...
-	@echo ========================================
-	.\$(BUILD_DIR)\$(TARGET_EXEC)
+# Flash to STM32 (requires st-flash or OpenOCD)
+# Uncomment and modify for your programmer
+# flash: $(BUILD_DIR)/$(TARGET_BIN)
+# 	st-flash write $< 0x08000000
 
-# ============================================================================
-# Development Helpers
-# ============================================================================
-
-# Print build variables (for debugging Makefile)
+# Print build variables (for debugging)
 print-vars:
-	@echo OBJS: $(OBJS)
-	@echo CXXFLAGS: $(CXXFLAGS)
-	@echo LDFLAGS: $(LDFLAGS)
-	@echo CXX_HEADER: $(CXX_HEADER)
-	@echo CXX_SOURCE: $(CXX_SOURCE)
-	@echo RUST_LIB: $(RUST_LIB)
-
-
+	@echo "OBJS:          $(OBJS)"
+	@echo "CXXFLAGS:      $(CXXFLAGS)"
+	@echo "LDFLAGS:       $(LDFLAGS)"
+	@echo "CXX_HEADER:    $(CXX_HEADER)"
+	@echo "CXX_SOURCE:    $(CXX_SOURCE)"
+	@echo "RUST_LIB:      $(RUST_LIB)"
+	@echo "RUST_TARGET:   $(RUST_TARGET)"
+	@echo "LINKER_SCRIPT: $(LINKER_SCRIPT)"

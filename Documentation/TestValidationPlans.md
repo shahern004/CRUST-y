@@ -32,24 +32,24 @@ This document contains manual test procedures for each development phase. Execut
 
 4. Check generated CXX header exists:
    ```bash
-   dir rust\target\x86_64-pc-windows-gnu\cxxbridge\crusty-firmware\src\lib.rs.h
+   dir rust\target\x86_64-pc-windows-gnu\cxxbridge\crustyV2-firmware\src\lib.rs.h
    ```
 
 5. Check generated CXX implementation exists:
    ```bash
-   dir rust\target\x86_64-pc-windows-gnu\cxxbridge\crusty-firmware\src\lib.rs.cc
+   dir rust\target\x86_64-pc-windows-gnu\cxxbridge\crustyV2-firmware\src\lib.rs.cc
    ```
 
 6. Check Rust static library exists:
    ```bash
-   dir rust\target\x86_64-pc-windows-gnu\release\libcrusty.a
+   dir rust\target\x86_64-pc-windows-gnu\release\libcrustyV2.a
    ```
 
 **Expected Results**:
 - ✅ `cargo build --release` completes successfully
 - ✅ `lib.rs.h` file exists in target cxxbridge directory
 - ✅ `lib.rs.cc` file exists in target cxxbridge directory
-- ✅ `libcrusty.a` file exists in `rust/target/x86_64-pc-windows-gnu/release/`
+- ✅ `libcrustyV2.a` file exists in `rust/target/x86_64-pc-windows-gnu/release/`
 - ✅ No compilation errors or warnings
 
 **Pass/Fail Criteria**:
@@ -67,7 +67,7 @@ This document contains manual test procedures for each development phase. Execut
 **Test Steps**:
 1. Open generated header file:
    ```bash
-   type Rust\target\cxxbridge\crusty\src\lib.rs.h
+   type Rust\target\cxxbridge\crustyV2\src\lib.rs.h
    ```
 
 2. Manually inspect for expected declarations:
@@ -82,7 +82,7 @@ This document contains manual test procedures for each development phase. Execut
 - ✅ Header contains `#pragma once` or include guards
 - ✅ Structs defined in CXX bridge are present
 - ✅ Function declarations match Rust signature definitions
-- ✅ Proper namespace usage (e.g., `namespace crusty`)
+- ✅ Proper namespace usage (e.g., `namespace crustyV2`)
 - ✅ Valid C++ syntax
 
 **Pass/Fail Criteria**:
@@ -141,7 +141,7 @@ This document contains manual test procedures for each development phase. Execut
 
 4. Verify executable exists:
    ```bash
-   dir build\crusty_firmware.exe
+   dir build\crustyV2_firmware.exe
    ```
 
 **Expected Results**:
@@ -149,7 +149,7 @@ This document contains manual test procedures for each development phase. Execut
 - ✅ CXX-generated `lib.rs.cc` compiles successfully
 - ✅ C++ code including `lib.rs.h` compiles successfully
 - ✅ Linking resolves all Rust function symbols
-- ✅ `crusty_firmware.exe` created
+- ✅ `crustyV2_firmware.exe` created
 - ✅ No undefined reference errors
 
 **Pass/Fail Criteria**:
@@ -295,17 +295,17 @@ Decision: [ APPROVED TO PROCEED TO PHASE 1 / REQUIRES FIXES ]
 
 3. Verify binary created:
    ```bash
-   dir build\crusty_firmware.elf
+   dir build\crustyV2_firmware.elf
    ```
 
 4. Check binary size:
    ```bash
-   arm-none-eabi-size build\crusty_firmware.elf
+   arm-none-eabi-size build\crustyV2_firmware.elf
    ```
 
 **Expected Results**:
 - ✅ ARM build compiles without errors
-- ✅ `crusty_firmware.elf` created
+- ✅ `crustyV2_firmware.elf` created
 - ✅ Text section < 2MB (Flash constraint)
 - ✅ Data + BSS < 640KB (RAM constraint)
 - ✅ Rust library links correctly
@@ -353,12 +353,12 @@ Decision: [ APPROVED TO PROCEED TO PHASE 1 / REQUIRES FIXES ]
 **Test Steps**:
 1. Generate binary file:
    ```bash
-   arm-none-eabi-objcopy -O binary build\crusty_firmware.elf build\crusty_firmware.bin
+   arm-none-eabi-objcopy -O binary build\crustyV2_firmware.elf build\crustyV2_firmware.bin
    ```
 
 2. Flash to board using STM32CubeProgrammer:
    ```bash
-   STM32_Programmer_CLI -c port=SWD -w build\crusty_firmware.bin 0x08000000 -rst
+   STM32_Programmer_CLI -c port=SWD -w build\crustyV2_firmware.bin 0x08000000 -rst
    ```
 
 3. Connect UART4 serial console (115200 baud)
@@ -378,15 +378,15 @@ Decision: [ APPROVED TO PROCEED TO PHASE 1 / REQUIRES FIXES ]
 
 ---
 
-### Test 1.6: calculate_crusty_number() FFI Demonstration
+### Test 1.6: calculate_crustyV2_number() FFI Demonstration
 
 **Objective**: Verify Rust function callable from C++ (simple FFI test)
 
 **Test Steps**:
 1. In main.cpp, add call to Rust function:
    ```cpp
-   uint32_t crusty_num = calculate_crusty_number();
-   logging::log("CRUSTy number: " + std::to_string(crusty_num));
+   uint32_t crustyV2_num = calculate_crustyV2_number();
+   logging::log("crustyV2 number: " + std::to_string(crustyV2_num));
    ```
 
 2. Build and run (Windows or ARM)
@@ -417,7 +417,7 @@ Test 1.2 - Windows Build Still Works:        [ PASS / FAIL ]
 Test 1.3 - ARM Target Build Compilation:     [ PASS / FAIL ]
 Test 1.4 - System Initialization Code:       [ PASS / FAIL ]
 Test 1.5 - Hardware Flashing (Optional):     [ PASS / FAIL / SKIPPED ]
-Test 1.6 - calculate_crusty_number() Demo:   [ PASS / FAIL ]
+Test 1.6 - calculate_crustyV2_number() Demo:   [ PASS / FAIL ]
 
 Overall Phase 1 Status: [ PASS / FAIL ]
 

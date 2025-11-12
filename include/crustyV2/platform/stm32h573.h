@@ -1,9 +1,9 @@
-#ifndef CRUSTY_PLATFORM_STM32H573_H
-#define CRUSTY_PLATFORM_STM32H573_H
+#ifndef crustyV2_PLATFORM_STM32H573_H
+#define crustyV2_PLATFORM_STM32H573_H
 
 #include <cstdint>
 
-namespace crusty {
+namespace crustyV2 {
 namespace platform {
 
 // STM32H573I-DK specific register definitions
@@ -107,6 +107,6 @@ constexpr uint8_t nvicBitPosition(uint8_t irq) {
 }
 
 } // namespace platform
-} // namespace crusty
+} // namespace crustyV2
 
-#endif // CRUSTY_PLATFORM_STM32H573_H
+#endif // crustyV2_PLATFORM_STM32H573_H

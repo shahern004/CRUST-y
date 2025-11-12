@@ -1,10 +1,10 @@
-#ifndef CRUSTY_COMPONENTS_CONTROL_H
-#define CRUSTY_COMPONENTS_CONTROL_H
+#ifndef crustyV2_COMPONENTS_CONTROL_H
+#define crustyV2_COMPONENTS_CONTROL_H
 
-#include "crusty/platform/types.h"
+#include "crustyV2/platform/types.h"
 #include <cstdint>
 
-namespace crusty {
+namespace crustyV2 {
 namespace components {
 
 /**
@@ -47,6 +47,6 @@ private:
 };
 
 } // namespace components
-} // namespace crusty
+} // namespace crustyV2
 
-#endif // CRUSTY_COMPONENTS_CONTROL_H
+#endif // crustyV2_COMPONENTS_CONTROL_H

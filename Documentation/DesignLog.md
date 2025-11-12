@@ -1,5 +1,7 @@
 # CRUST-y Design Log
 
+> **STM32-Only Branch Note**: This branch has been streamlined for STM32 baremetal deployment only. All Windows development stubs and conditional compilation (`WINDOWS_BUILD`) have been removed from production code. The HAL layer (MMIO, UART, NVIC) now contains only STM32 hardware implementations. For historical context on the hybrid approach, see the lessons learned sections below.
+
 ## Architecture: C++ Infrastructure + Rust Safety Functions
 
 **C++ owns**: All 5 layers, main application, simulated CFPGA, interrupt handling
@@ -24,11 +26,11 @@ Layer 1: LowLevelPlatform → Memory map, register definitions
 ### ✅ Step 1: C++ Infrastructure (Complete)
 **What**: All 5 layers implemented
 **Key Files**:
-- Layer 1: `include/crusty/platform/` (memory_map.h, stm32h573.h, types.h)
-- Layer 2: `include/crusty/hal/` (mmio.h, nvic, gpio, uart)
-- Layer 3: `include/crusty/devices/` (device_base.h)
-- Layer 4: `include/crusty/spinterfaces/` (logging)
-- Layer 5: `include/crusty/components/` (control)
+- Layer 1: `include/crustyV2/platform/` (memory_map.h, stm32h573.h, types.h)
+- Layer 2: `include/crustyV2/hal/` (mmio.h, nvic, gpio, uart)
+- Layer 3: `include/crustyV2/devices/` (device_base.h)
+- Layer 4: `include/crustyV2/spinterfaces/` (logging)
+- Layer 5: `include/crustyV2/components/` (control)
 - Main: `src/main.cpp`
 - Build: `Makefile` (Windows MinGW)
 
@@ -51,13 +53,15 @@ Layer 1: LowLevelPlatform → Memory map, register definitions
 - ✅ Updated Makefile with proper build order: Rust → C++ → Link
 - ✅ Rust validation functions fully implemented with unit tests
 - ✅ Zero unsafe blocks in validation logic (memory-safe)
-- ✅ **Added demonstration function `calculate_crusty_number()` for FFI testing**
+- ✅ **Added demonstration function `calculate_crustyV2_number()` for FFI testing**
 - ✅ **C++ successfully calls Rust function via CXX bridge**
 - ✅ **Windows HAL stubs implemented (MMIO, UART)**
 - ✅ **Application builds and runs successfully on Windows**
-- ✅ **Output verified: "The CRUSTy number is: 42"**
+- ✅ **Output verified: "The crustyV2 number is: 42"**
 
-**Key Architectural Decision: Conditional Compilation Strategy**
+**Key Architectural Decision: Conditional Compilation Strategy** *(Historical - Removed in STM32-only branch)*
+
+> **Note**: The conditional compilation approach described below was used during initial development but has been removed in this STM32-only branch. The HAL layer now contains only baremetal STM32 implementations.
 
 Based on research findings (CXX has limited no_std support), implemented hybrid approach:
 
@@ -89,11 +93,11 @@ Based on research findings (CXX has limited no_std support), implemented hybrid 
 - ✅ `src/main.cpp` - CXX bridge integration and demonstration
 - ✅ `src/hal/nvic.cpp` - Conditional ARM assembly for Windows simulation
 
-**Files Modified (Windows Build Support - Session 2024)**:
-- ✅ `Rust/src/lib.rs` - Added `calculate_crusty_number()` demonstration function
+**Files Modified (Windows Build Support - Session 2024)** *(Removed in STM32-only branch)*:
+- ✅ `Rust/src/lib.rs` - Added `calculate_crustyV2_number()` demonstration function
 - ✅ `src/main.cpp` - Added `#include "lib.rs.h"` and Rust function call
-- ✅ `include/crusty/hal/mmio.h` - Added `#ifdef WINDOWS_BUILD` stubs for all MMIO functions
-- ✅ `src/hal/uart.cpp` - Added `#ifdef WINDOWS_BUILD` with `putchar()` console output
+- ~~✅ `include/crustyV2/hal/mmio.h` - Added `#ifdef WINDOWS_BUILD` stubs~~ *(Removed - STM32 hardware only)*
+- ~~✅ `src/hal/uart.cpp` - Added `#ifdef WINDOWS_BUILD` console I/O~~ *(Removed - STM32 hardware only)*
 
 **Issues Resolved**:
 1. ✅ **CXX Header Path**: Updated Makefile to include target-specific path
@@ -105,7 +109,7 @@ Based on research findings (CXX has limited no_std support), implemented hybrid 
 - ✅ Executable runs without crashes
 - ✅ All logging output displays via console
 - ✅ Rust function called successfully from C++
-- ✅ Correct output: "The CRUSTy number is: 42"
+- ✅ Correct output: "The crustyV2 number is: 42"
 
 **Current Status**: 🎉 **100% COMPLETE** - CXX bridge fully functional, ready for Phase 1 (STM32 port)
 
@@ -120,7 +124,7 @@ Based on research findings (CXX has limited no_std support), implemented hybrid 
 - Integration with Control component event handling
 
 **Files to Create**:
-- `include/crusty/devices/cfpga_fifo.h`
+- `include/crustyV2/devices/cfpga_fifo.h`
 - `src/devices/cfpga_fifo.cpp`
 
 ### ⏳ Phase 2: Rust Safety Functions (After Phase 0)
@@ -181,7 +185,7 @@ Control Flow:
 ## Key Design Decisions
 
 **Why C++ infrastructure?**
-Per CRUSTyOverview.md: C++ is main system. Rust only handles Phase 1 externally-facing interfaces and control/status bypass functions.
+Per crustyV2Overview.md: C++ is main system. Rust only handles Phase 1 externally-facing interfaces and control/status bypass functions.
 
 **Why layered architecture?**
 Matches existing TaISR codebase structure (Layers 1-5) for eventual production migration.
@@ -224,7 +228,7 @@ Lab doesn't have Xilinx FPGA. Software FIFO mimics hardware for prototype testin
 make clean      # Clean build artifacts (C++ and Rust)
 make cpp        # Build C++ only (Step 1 - before CXX integration)
 make rust       # Build Rust with CXX bridge (Phase 0+)
-                # Generates: lib.rs.h, lib.rs.cc, libcrusty.a
+                # Generates: lib.rs.h, lib.rs.cc, libcrustyV2.a
 make all        # Build everything (Phase 0+)
                 # Order: Rust first (generate headers), then C++ (include headers)
 make run        # Run executable
@@ -241,21 +245,21 @@ make run        # Run executable
 ## File Structure
 
 ```
-include/crusty/           → C++ headers (5 layers)
+include/crustyV2/           → C++ headers (5 layers)
 src/                      → C++ implementation
 Rust/src/lib.rs          → CXX bridge definition (#[cxx::bridge])
 Rust/src/*.rs            → Rust validation implementations
 Rust/build.rs            → CXX code generation configuration
 Rust/target/cxxbridge/   → Generated CXX headers (lib.rs.h, lib.rs.cc)
-Rust/target/release/     → Rust staticlib (libcrusty.a)
+Rust/target/release/     → Rust staticlib (libcrustyV2.a)
 Makefile                 → Build orchestration (Rust → C++ → Link)
-Documentation/           → CRUSTyOverview.md, cxx.md, DesignLog.md, CLAUDE.md
+Documentation/           → crustyV2Overview.md, cxx.md, DesignLog.md, CLAUDE.md
 ```
 
 **CXX-Generated Files** (auto-generated, do not edit manually):
-- `Rust/target/cxxbridge/crusty/src/lib.rs.h` - C++ header with Rust function declarations
-- `Rust/target/cxxbridge/crusty/src/lib.rs.cc` - C++ FFI implementation
-- C++ code includes: `#include "crusty/src/lib.rs.h"`
+- `Rust/target/cxxbridge/crustyV2/src/lib.rs.h` - C++ header with Rust function declarations
+- `Rust/target/cxxbridge/crustyV2/src/lib.rs.cc` - C++ FFI implementation
+- C++ code includes: `#include "crustyV2/src/lib.rs.h"`
 
 ---
 
@@ -326,7 +330,7 @@ Documentation/           → CRUSTyOverview.md, cxx.md, DesignLog.md, CLAUDE.md
 **Solution**:
 Update Makefile to include target directory in CXX header paths:
 ```makefile
-CXX_BRIDGE_DIR := $(RUST_DIR)/target/x86_64-pc-windows-gnu/cxxbridge/crusty-firmware/src
+CXX_BRIDGE_DIR := $(RUST_DIR)/target/x86_64-pc-windows-gnu/cxxbridge/crustyV2-firmware/src
 ```
 
 **Recommendation for Production Migration**:
@@ -356,7 +360,7 @@ CXX_BRIDGE_DIR := $(RUST_DIR)/target/x86_64-pc-windows-gnu/cxxbridge/crusty-firm
 **Solution Implemented**:
 1. Created `Rust/.cargo/config.toml` with `target = "x86_64-pc-windows-gnu"`
 2. Forces Rust to compile for MinGW (GNU) target
-3. Generates MinGW-compatible `libcrusty.a` instead of MSVC `crusty.lib`
+3. Generates MinGW-compatible `libcrustyV2.a` instead of MSVC `crustyV2.lib`
 4. Both Rust and C++ now use compatible ABIs
 
 **Alternative Considered**:
@@ -372,7 +376,9 @@ CXX_BRIDGE_DIR := $(RUST_DIR)/target/x86_64-pc-windows-gnu/cxxbridge/crusty-firm
 
 ---
 
-### Lesson 4: Windows Development Requires Hardware Abstraction Stubs (Phase 0)
+### Lesson 4: Windows Development Requires Hardware Abstraction Stubs (Phase 0) *(Historical)*
+
+> **STM32-Only Branch Note**: The Windows stubs described in this lesson have been removed. This branch contains only STM32 baremetal implementations. This lesson is preserved for historical context and future reference.
 
 **Finding**: Direct hardware memory access causes crashes on Windows development builds
 
@@ -416,7 +422,7 @@ void UART::transmitByte(uintptr_t uartBase, uint8_t data) {
 ```
 
 **Files Modified**:
-- `include/crusty/hal/mmio.h` - All 6 MMIO functions stubbed
+- `include/crustyV2/hal/mmio.h` - All 6 MMIO functions stubbed
 - `src/hal/uart.cpp` - Transmit/receive functions use console I/O
 
 **Benefits**:
@@ -442,12 +448,12 @@ Developers might think functions need `extern "C"` or `extern` in implementation
 #[cxx::bridge]
 mod ffi {
     extern "Rust" {
-        fn calculate_crusty_number() -> u32;  // Declaration only
+        fn calculate_crustyV2_number() -> u32;  // Declaration only
     }
 }
 
 // Implementation in parent module
-pub fn calculate_crusty_number() -> u32 {  // Regular pub fn, NOT extern
+pub fn calculate_crustyV2_number() -> u32 {  // Regular pub fn, NOT extern
     41 + 1
 }
 ```
@@ -473,6 +479,6 @@ From CXX docs: "Your function implementations themselves, whether in C++ or Rust
 
 ## References
 
-- [CRUSTyOverview.md](CRUSTyOverview.md) - Project requirements
+- [crustyV2Overview.md](crustyV2Overview.md) - Project requirements
 - [cxx.md](cxx.md) - CXX FFI library reference
 - [TestValidationPlans.md](TestValidationPlans.md) - Manual test procedures

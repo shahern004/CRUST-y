@@ -1,10 +1,10 @@
-#ifndef CRUSTY_HAL_UART_H
-#define CRUSTY_HAL_UART_H
+#ifndef crustyV2_HAL_UART_H
+#define crustyV2_HAL_UART_H
 
-#include "crusty/platform/types.h"
+#include "crustyV2/platform/types.h"
 #include <cstdint>
 
-namespace crusty {
+namespace crustyV2 {
 namespace hal {
 
 /**
@@ -68,6 +68,6 @@ public:
 };
 
 } // namespace hal
-} // namespace crusty
+} // namespace crustyV2
 
-#endif // CRUSTY_HAL_UART_H
+#endif // crustyV2_HAL_UART_H

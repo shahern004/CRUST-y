@@ -1,7 +1,7 @@
-#include "crusty/hal/gpio.h"
-#include "crusty/hal/mmio.h"
+#include "crustyV2/hal/gpio.h"
+#include "crustyV2/hal/mmio.h"
 
-namespace crusty {
+namespace crustyV2 {
 namespace hal {
 
 // GPIO Register offsets
@@ -62,4 +62,4 @@ void GPIO::writePin(uintptr_t port, uint8_t pin, PinState state) {
 }
 
 } // namespace hal
-} // namespace crusty
+} // namespace crustyV2

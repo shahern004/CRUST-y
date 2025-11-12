@@ -1,10 +1,10 @@
-#ifndef CRUSTY_SPINTERFACES_LOGGING_H
-#define CRUSTY_SPINTERFACES_LOGGING_H
+#ifndef crustyV2_SPINTERFACES_LOGGING_H
+#define crustyV2_SPINTERFACES_LOGGING_H
 
-#include "crusty/platform/types.h"
+#include "crustyV2/platform/types.h"
 #include <cstdint>
 
-namespace crusty {
+namespace crustyV2 {
 namespace spinterfaces {
 
 /**
@@ -71,6 +71,6 @@ private:
 };
 
 } // namespace spinterfaces
-} // namespace crusty
+} // namespace crustyV2
 
-#endif // CRUSTY_SPINTERFACES_LOGGING_H
+#endif // crustyV2_SPINTERFACES_LOGGING_H

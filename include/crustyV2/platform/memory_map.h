@@ -1,10 +1,10 @@
-#ifndef CRUSTY_PLATFORM_MEMORY_MAP_H
-#define CRUSTY_PLATFORM_MEMORY_MAP_H
+#ifndef crustyV2_PLATFORM_MEMORY_MAP_H
+#define crustyV2_PLATFORM_MEMORY_MAP_H
 
 #include <cstdint>
 #include <cstddef>
 
-namespace crusty {
+namespace crustyV2 {
 namespace platform {
 
 // Memory Map for STM32H573I-DK
@@ -70,6 +70,6 @@ constexpr MemoryRegion RAM_REGION = {RAM_BASE, RAM_SIZE};
 constexpr MemoryRegion PERIPHERAL_REGION = {PERIPHERAL_BASE, PERIPHERAL_SIZE};
 
 } // namespace platform
-} // namespace crusty
+} // namespace crustyV2
 
-#endif // CRUSTY_PLATFORM_MEMORY_MAP_H
+#endif // crustyV2_PLATFORM_MEMORY_MAP_H

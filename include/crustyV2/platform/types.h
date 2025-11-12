@@ -1,9 +1,9 @@
-#ifndef CRUSTY_PLATFORM_TYPES_H
-#define CRUSTY_PLATFORM_TYPES_H
+#ifndef crustyV2_PLATFORM_TYPES_H
+#define crustyV2_PLATFORM_TYPES_H
 
 #include <cstdint>
 
-namespace crusty {
+namespace crustyV2 {
 
 // ============================================================================
 // Common Type Definitions
@@ -46,6 +46,6 @@ enum class PinMode : uint8_t {
     ANALOG = 3
 };
 
-} // namespace crusty
+} // namespace crustyV2
 
-#endif // CRUSTY_PLATFORM_TYPES_H
+#endif // crustyV2_PLATFORM_TYPES_H

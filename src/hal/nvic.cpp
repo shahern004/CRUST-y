@@ -1,6 +1,6 @@
-#include "crusty/hal/nvic.h"
+#include "crustyV2/hal/nvic.h"
 
-namespace crusty {
+namespace crustyV2 {
 namespace hal {
 
 void NVIC::enableIRQ(uint8_t irq) {
@@ -64,22 +64,12 @@ InterruptPriority NVIC::getPriority(uint8_t irq) {
 }
 
 void NVIC::disableGlobal() {
-#ifdef WINDOWS_BUILD
-    // Simulated on Windows - no actual interrupt control
-    // In real baremetal build, this disables interrupts globally
-#else
     __asm volatile ("cpsid i" : : : "memory");
-#endif
 }
 
 void NVIC::enableGlobal() {
-#ifdef WINDOWS_BUILD
-    // Simulated on Windows - no actual interrupt control
-    // In real baremetal build, this enables interrupts globally
-#else
     __asm volatile ("cpsie i" : : : "memory");
-#endif
 }
 
 } // namespace hal
-} // namespace crusty
+} // namespace crustyV2

@@ -35,7 +35,7 @@ extern uint32_t* rust_get_array(uint32_t* len);
 //
 int main( void )
 {
-    printf("//********nHELLO CRUSTY MAIN\n//********");
+    printf("//********nHELLO crustyV2 MAIN\n//********");
     printf("\trust_function %d\n", answer_from_rust());
     uint32_t len = 0;
     printf("RustArray:");
@@ -96,7 +96,7 @@ fn read_mem_loc(address: *const u32 )->u16 {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn crusty_grab_msg_word_count( base_address: u32 ) -> u16 {
+pub extern "C" fn crustyV2_grab_msg_word_count( base_address: u32 ) -> u16 {
 
     // cmd fifo address
     let message_count_address = base_address + 0x12;
@@ -127,7 +127,7 @@ pub extern "C" fn rust_read_message(base_address: u32, data: *mut u16, data_len:
         slice = slice::from_raw_parts_mut(data, data_len as usize);
         }
 
-        fifo_count = crusty_grab_msg_word_count(base_address);
+        fifo_count = crustyV2_grab_msg_word_count(base_address);
 
         let mut words_to_read:u16 = data_to_read;
 
@@ -141,7 +141,7 @@ pub extern "C" fn rust_read_message(base_address: u32, data: *mut u16, data_len:
             size_read += 2;
         }
 
-        fifo_count = crusty_grab_msg_word_count(base_address)
+        fifo_count = crustyV2_grab_msg_word_count(base_address)
 
         if read_extra_byte == 1 && fifo_count > read_extra_byte as u16
         {

@@ -7,7 +7,7 @@ fn main() {
         .flag_if_supported("-std=c++17")  // Use C++17 standard
         .flag_if_supported("-Wall")       // Enable all warnings
         .flag_if_supported("-Wextra")     // Enable extra warnings
-        .compile("crusty");
+        .compile("crustyV2");
 
     // Tell Cargo to rerun this build script if lib.rs changes
     println!("cargo:rerun-if-changed=src/lib.rs");

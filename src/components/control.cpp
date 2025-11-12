@@ -1,7 +1,7 @@
-#include "crusty/components/control.h"
-#include "crusty/spinterfaces/logging.h"
+#include "crustyV2/components/control.h"
+#include "crustyV2/spinterfaces/logging.h"
 
-namespace crusty {
+namespace crustyV2 {
 namespace components {
 
 // Static member initialization
@@ -54,4 +54,4 @@ bool Control::isInitialized() {
 }
 
 } // namespace components
-} // namespace crusty
+} // namespace crustyV2

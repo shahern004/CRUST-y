@@ -1,7 +1,7 @@
-#include "crusty/spinterfaces/logging.h"
-#include "crusty/hal/uart.h"
+#include "crustyV2/spinterfaces/logging.h"
+#include "crustyV2/hal/uart.h"
 
-namespace crusty {
+namespace crustyV2 {
 namespace spinterfaces {
 
 // Static member initialization
@@ -54,4 +54,4 @@ void Logging::logWarning(const char* message) {
 }
 
 } // namespace spinterfaces
-} // namespace crusty
+} // namespace crustyV2

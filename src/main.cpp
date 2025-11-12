@@ -1,71 +1,56 @@
 /**
  * @file main.cpp
- * @brief Main entry point for CRUST-y baremetal firmware
- *
- * This is the C++ infrastructure that initializes all layers and
- * orchestrates the application. Rust functions are called for
- * safety-critical operations as defined in Phase 1.
+ * @brief Main entry point for CRUST-y baremetal firmware (STM32H573)
  */
 
-#include "crusty/platform/memory_map.h"
-#include "crusty/platform/stm32h573.h"
-#include "crusty/platform/types.h"
-#include "crusty/hal/nvic.h"
-#include "crusty/hal/gpio.h"
-#include "crusty/hal/uart.h"
-#include "crusty/spinterfaces/logging.h"
-#include "crusty/components/control.h"
+#include "crustyV2/platform/memory_map.h"
+#include "crustyV2/platform/stm32h573.h"
+#include "crustyV2/platform/types.h"
+#include "crustyV2/hal/nvic.h"
+#include "crustyV2/hal/gpio.h"
+#include "crustyV2/hal/uart.h"
+#include "crustyV2/spinterfaces/logging.h"
+#include "crustyV2/components/control.h"
 
-// Include CXX-generated Rust FFI bridge (Phase 0+)
+// CXX-generated Rust FFI bridge
 #include "lib.rs.h"
 
-#ifdef WINDOWS_BUILD
-#include <iostream>  // For console input to pause on Windows
-#endif
-
-using namespace crusty;
+using namespace crustyV2;
 
 /**
- * @brief Initialize platform and hardware (Layer 1 & 2)
- * @return Status OK if successful
+ * @brief Initialize platform and hardware
  */
 static Status initPlatform() {
     // Initialize UART for logging (115200 baud)
     Status status = spinterfaces::Logging::init(platform::UART4_BASE, 115200);
     if (status != Status::OK) {
-        // Can't log if UART init fails, but continue
         return status;
     }
 
     spinterfaces::Logging::logInfo("=== CRUST-y Firmware Starting ===");
     spinterfaces::Logging::logInfo("Platform: STM32H573I-DK");
 
-    // Initialize GPIO (example: LED on GPIOB pin 7 for status)
+    // Initialize LED GPIO (GPIOB pin 7)
     hal::GPIO::initPin(platform::GPIOB_BASE, 7, PinMode::OUTPUT);
-    hal::GPIO::clearPin(platform::GPIOB_BASE, 7);  // LED off initially
+    hal::GPIO::clearPin(platform::GPIOB_BASE, 7);
 
     spinterfaces::Logging::logInfo("Platform initialization complete");
     return Status::OK;
 }
 
 /**
- * @brief Initialize devices (Layer 3)
- * @return Status OK if successful
+ * @brief Initialize devices
  */
 static Status initDevices() {
     spinterfaces::Logging::logInfo("Initializing devices...");
-
-    // CFPGA initialization will be added in Step 2
-
+    // CFPGA initialization added in Step 2
     spinterfaces::Logging::logInfo("Device initialization complete");
     return Status::OK;
 }
 
 /**
- * @brief Initialize components (Layer 5)
- * @return Status OK if successful
+ * @brief Initialize components
  */
-
 static Status initComponents() {
     spinterfaces::Logging::logInfo("Initializing components...");
 
@@ -82,21 +67,23 @@ static Status initComponents() {
  * @brief Main entry point
  */
 int main(void) {
-    // Layer 1 & 2: Platform and HAL initialization
+    // Initialize Rust heap (required for CXX bridge)
+    init_heap();
+
+    // Platform initialization
     Status status = initPlatform();
     if (status != Status::OK) {
-        // Platform init failed - halt
         while (1) {}
     }
 
-    // Layer 3: Device initialization
+    // Device initialization
     status = initDevices();
     if (status != Status::OK) {
         spinterfaces::Logging::logError("Device initialization failed");
         while (1) {}
     }
 
-    // Layer 5: Component initialization
+    // Component initialization
     status = initComponents();
     if (status != Status::OK) {
         spinterfaces::Logging::logError("Component initialization failed");
@@ -114,34 +101,32 @@ int main(void) {
     spinterfaces::Logging::logInfo("Testing C++/Rust integration via CXX bridge");
     spinterfaces::Logging::logInfo("==============================================");
 
-    // Call Rust function to calculate the CRUSTy number
-    uint32_t crusty_number = calculate_crusty_number();
+    // Call Rust function
+    uint32_t crustyV2_number = calculate_crusty_number();
 
-    // Output result
-#ifdef WINDOWS_BUILD
-    std::cout << "The CRUSTy number is: " << crusty_number << std::endl;
-#else
-    // For baremetal, format and log via UART
+    // Output result via UART
     char buffer[64];
-    snprintf(buffer, sizeof(buffer), "The CRUSTy number is: %u", crusty_number);
+    snprintf(buffer, sizeof(buffer), "The crusty number is: %u", crustyV2_number);
     spinterfaces::Logging::logInfo(buffer);
-#endif
 
     spinterfaces::Logging::logInfo("==============================================");
     spinterfaces::Logging::logInfo("Phase 0 complete - CXX bridge functional");
-    spinterfaces::Logging::logInfo("Press Enter to exit...");
+    spinterfaces::Logging::logInfo("==============================================");
 
-#ifdef WINDOWS_BUILD
-    // Keep console open on Windows for manual verification
-    std::cin.get();
-#endif
+    // Main application loop
+    while (1) {
+        // TODO: Main application tasks
+        hal::GPIO::togglePin(platform::GPIOB_BASE, 7);  // Heartbeat LED
+        
+        // Simple delay (replace with timer-based delay)
+        for (volatile uint32_t i = 0; i < 1000000; i++);
+    }
 
     return 0;
 }
 
 /**
  * @brief Default interrupt handler
- * Catches any unhandled interrupts
  */
 extern "C" void Default_Handler(void) {
     spinterfaces::Logging::logError("Unhandled interrupt!");
